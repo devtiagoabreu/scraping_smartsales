@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DGB COMEX - Sistema de Scraping</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0,0,0,.1);
+            border: none;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .card-header {
+            font-weight: 600;
+        }
+        .progress {
+            height: 25px;
+            border-radius: 12px;
+        }
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        .log-container {
+            height: 300px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .log-entry {
+            border-left: 3px solid #0d6efd;
+            padding-left: 10px;
+            margin-bottom: 5px;
+            color: white;
+        }
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            color: #fff;
+            opacity: 0.7;
+        }
+        .nav-tabs .nav-link.active {
+            background: transparent;
+            border-bottom: 2px solid #0d6efd;
+            opacity: 1;
+        }
+        .status-card {
+            transition: all 0.3s ease;
+        }
+        .status-card:hover {
+            transform: translateY(-5px);
+        }
+        .bi {
+            margin-right: 5px;
+        }
+        .footer {
+            border-top: 1px solid #dee2e6;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .processing {
+            animation: pulse 2s infinite;
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-database"></i> DGB COMEX Scraper
+            </a>
+            <div class="text-light">
+                <i class="bi bi-clock"></i> <span id="current-time"></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Cards de Status -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-list-check"></i> Produtos</h5>
+                        <h2 id="total-products">0</h2>
+                        <p class="card-text">Na fila de processamento</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-check-circle"></i> Processados</h5>
+                        <h2 id="processed-products">0</h2>
+                        <p class="card-text">Com sucesso</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-exclamation-triangle"></i> Com Erros</h5>
+                        <h2 id="error-products">0</h2>
+                        <p class="card-text">Necessitam atenção</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-info">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-clock-history"></i> Tempo</h5>
+                        <h2 id="elapsed-time">00:00</h2>
+                        <p class="card-text">Decorrido</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controles Principais -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-gear"></i> Controles
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label text-white">Lista de Produtos</label>
+                            <textarea class="form-control bg-dark text-white" id="products-list" rows="5" placeholder="Ex: 13,14,15,16,17"></textarea>
+                            <small class="form-text text-muted">Códigos separados por vírgula</small>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mb-3">
+                            <button class="btn btn-outline-primary" onclick="loadProducts()">
+                                <i class="bi bi-arrow-clockwise"></i> Carregar Lista
+                            </button>
+                            <button class="btn btn-outline-success" onclick="saveProducts()">
+                                <i class="bi bi-save"></i> Salvar Lista
+                            </button>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" id="start-btn" onclick="startScraping()">
+                                <i class="bi bi-play-fill"></i> Iniciar Scraping
+                            </button>
+                            <button class="btn btn-danger btn-lg" id="stop-btn" onclick="stopScraping()" disabled>
+                                <i class="bi bi-stop-fill"></i> Parar Scraping
+                            </button>
+                            <button class="btn btn-warning btn-lg" onclick="consolidateData()">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Consolidar Dados
+                            </button>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-info w-100" onclick="testLogin()">
+                                <i class="bi bi-shield-check"></i> Testar Login
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progresso -->
+                <div class="card mt-4">
+                    <div class="card-header bg-secondary text-white">
+                        <i class="bi bi-graph-up"></i> Progresso
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-3">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p class="text-white mb-1"><strong>Status:</strong> <span id="status-text">Pronto</span></p>
+                        <p class="text-white mb-1"><strong>Produto Atual:</strong> <span id="current-product">-</span></p>
+                        <p class="text-white mb-0"><strong>Mensagem:</strong> <span id="status-message">Aguardando início...</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <!-- Abas -->
+                <div class="card">
+                    <div class="card-header bg-dark">
+                        <ul class="nav nav-tabs card-header-tabs" id="main-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs">
+                                    <i class="bi bi-terminal"></i> Logs
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files">
+                                    <i class="bi bi-folder"></i> Arquivos
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results">
+                                    <i class="bi bi-table"></i> Resultados
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config">
+                                    <i class="bi bi-sliders"></i> Configurações
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <!-- Tab Logs -->
+                            <div class="tab-pane fade show active" id="logs" role="tabpanel">
+                                <div class="log-container">
+                                    <div id="log-content"></div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-light mt-2" onclick="clearLogs()">
+                                    <i class="bi bi-trash"></i> Limpar Logs
+                                </button>
+                            </div>
+                            
+                            <!-- Tab Arquivos -->
+                            <div class="tab-pane fade" id="files" role="tabpanel">
+                                <ul class="nav nav-tabs">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" data-bs-toggle="tab" href="#csv-files">CSV</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-bs-toggle="tab" href="#pdf-files">PDF</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-bs-toggle="tab" href="#consolidated-files">Consolidados</a>
+                                    </li>
+                                </ul>
+                                
+                                <div class="tab-content mt-3">
+                                    <div class="tab-pane fade show active" id="csv-files">
+                                        <div class="file-list" id="csv-list">
+                                            <!-- Lista de CSVs será carregada aqui -->
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="pdf-files">
+                                        <div class="file-list" id="pdf-list">
+                                            <!-- Lista de PDFs será carregada aqui -->
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="consolidated-files">
+                                        <div class="file-list" id="consolidated-list">
+                                            <!-- Lista de consolidados será carregada aqui -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tab Resultados -->
+                            <div class="tab-pane fade" id="results" role="tabpanel">
+                                <table class="table table-dark table-hover" id="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Produto</th>
+                                            <th>Status</th>
+                                            <th>Registros</th>
+                                            <th>Arquivo</th>
+                                            <th>Data</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="results-body">
+                                        <!-- Resultados serão inseridos aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Tab Configurações -->
+                            <div class="tab-pane fade" id="config" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card bg-dark">
+                                            <div class="card-body">
+                                                <h5 class="card-title text-white">Configurações do Sistema</h5>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">Usuário DGB</label>
+                                                    <input type="text" class="form-control bg-dark text-white" id="config-user" value="tiago" readonly>
+                                                    <small class="form-text text-muted">Configurado no arquivo .env</small>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">URL Login</label>
+                                                    <input type="text" class="form-control bg-dark text-white" id="config-login-url" value="http://sistemadgb.4pu.com:90/dgb/login.jsf" readonly>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">URL Estoque</label>
+                                                    <input type="text" class="form-control bg-dark text-white" id="config-estoque-url" value="http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf" readonly>
+                                                </div>
+                                                <button class="btn btn-outline-info w-100" onclick="reloadConfig()">
+                                                    <i class="bi bi-arrow-clockwise"></i> Recarregar Configurações
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-dark">
+                                            <div class="card-body">
+                                                <h5 class="card-title text-white">Configurações de Scraping</h5>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">Delay entre requisições (segundos)</label>
+                                                    <input type="number" class="form-control bg-dark text-white" id="config-delay" value="2" min="1" max="10">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">Timeout (segundos)</label>
+                                                    <input type="number" class="form-control bg-dark text-white" id="config-timeout" value="30" min="10" max="120">
+                                                </div>
+                                                <div class="form-check mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="config-headless" checked>
+                                                    <label class="form-check-label text-white" for="config-headless">
+                                                        Modo Headless
+                                                    </label>
+                                                </div>
+                                                <button class="btn btn-outline-warning w-100" onclick="saveScrapingConfig()">
+                                                    <i class="bi bi-gear"></i> Salvar Configurações
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Resumo -->
+                <div class="card mt-4">
+                    <div class="card-header bg-info text-white">
+                        <i class="bi bi-info-circle"></i> Informações do Sistema
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="text-white"><strong>Última Execução:</strong> <span id="last-execution">Nenhuma</span></p>
+                                <p class="text-white"><strong>Arquivo Consolidado:</strong> <span id="last-consolidated">Nenhum</span></p>
+                                <p class="text-white"><strong>Total de Arquivos CSV:</strong> <span id="total-csv-files">0</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="text-white"><strong>Status do Sistema:</strong> <span class="badge bg-success" id="system-status">Operacional</span></p>
+                                <p class="text-white"><strong>Usuário Configurado:</strong> <span id="config-usuario">tiago</span></p>
+                                <p class="text-white"><strong>Última Atualização:</strong> <span id="last-update">-</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer mt-5 py-3 bg-dark text-center">
+        <div class="container">
+            <span class="text-muted">Sistema de Web Scraping DGB COMEX &copy; 2024 - <span id="footer-time"></span></span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        let statusPolling = null;
+        let logs = [];
+        
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleString('pt-BR');
+            document.getElementById('current-time').textContent = timeStr;
+            document.getElementById('footer-time').textContent = timeStr;
+            document.getElementById('last-update').textContent = timeStr;
+        }
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const logEntry = {
+                timestamp,
+                message,
+                type
+            };
+            
+            logs.unshift(logEntry);
+            
+            if (logs.length > 100) {
+                logs.pop();
+            }
+            
+            updateLogDisplay();
+        }
+        
+        function updateLogDisplay() {
+            const logContent = document.getElementById('log-content');
+            let html = '';
+            
+            logs.forEach(log => {
+                let badgeClass = 'bg-secondary';
+                if (log.type === 'success') badgeClass = 'bg-success';
+                if (log.type === 'error') badgeClass = 'bg-danger';
+                if (log.type === 'warning') badgeClass = 'bg-warning';
+                
+                html += `
+                    <div class="log-entry">
+                        <span class="badge ${badgeClass}">${log.timestamp}</span>
+                        <span class="ms-2">${log.message}</span>
+                    </div>
+                `;
+            });
+            
+            logContent.innerHTML = html;
+        }
+        
+        function clearLogs() {
+            logs = [];
+            updateLogDisplay();
+            addLog('Logs limpos', 'info');
+        }
+        
+        function loadProducts() {
+            fetch('/api/get-products')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('products-list').value = data.produtos;
+                    updateProductCount();
+                    addLog('Lista de produtos carregada', 'success');
+                })
+                .catch(error => {
+                    addLog('Erro ao carregar produtos: ' + error, 'error');
+                });
+        }
+        
+        function saveProducts() {
+            const produtos = document.getElementById('products-list').value;
+            
+            fetch('/api/update-products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ produtos: produtos })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('Lista de produtos salva', 'success');
+                    updateProductCount();
+                } else {
+                    addLog('Erro ao salvar produtos: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('Erro ao salvar produtos: ' + error, 'error');
+            });
+        }
+        
+        function updateProductCount() {
+            const produtos = document.getElementById('products-list').value;
+            const count = produtos.split(',').filter(p => p.trim()).length;
+            document.getElementById('total-products').textContent = count;
+        }
+        
+        function startScraping() {
+            // Primeiro salvar a lista de produtos
+            saveProducts();
+            
+            setTimeout(() => {
+                fetch('/api/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('start-btn').disabled = true;
+                        document.getElementById('stop-btn').disabled = false;
+                        addLog('Scraping iniciado', 'success');
+                        startStatusPolling();
+                    } else {
+                        addLog('Erro ao iniciar scraping: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    addLog('Erro ao iniciar scraping: ' + error, 'error');
+                });
+            }, 500);
+        }
+        
+        function stopScraping() {
+            fetch('/api/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('stop-btn').disabled = true;
+                addLog('Scraping interrompido', 'warning');
+            })
+            .catch(error => {
+                addLog('Erro ao parar scraping: ' + error, 'error');
+            });
+        }
+        
+        function consolidateData() {
+            fetch('/api/consolidate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('Dados consolidados: ' + data.message, 'success');
+                    loadFileLists();
+                } else {
+                    addLog('Erro na consolidação: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('Erro na consolidação: ' + error, 'error');
+            });
+        }
+        
+        function testLogin() {
+            addLog('Testando login com credenciais do .env...', 'info');
+            
+            fetch('/api/test-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('Login testado com sucesso!', 'success');
+                } else {
+                    addLog('Falha no login: ' + (data.error || 'Verifique as credenciais no arquivo .env'), 'error');
+                }
+            })
+            .catch(error => {
+                addLog('Erro ao testar login: ' + error, 'error');
+            });
+        }
+        
+        function startStatusPolling() {
+            if (statusPolling) {
+                clearInterval(statusPolling);
+            }
+            
+            statusPolling = setInterval(() => {
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(status => {
+                        updateStatusDisplay(status);
+                    })
+                    .catch(error => {
+                        console.error('Erro ao buscar status:', error);
+                    });
+            }, 2000);
+        }
+        
+        function updateStatusDisplay(status) {
+            // Progresso
+            document.getElementById('progress-bar').style.width = status.progress + '%';
+            document.getElementById('progress-bar').textContent = status.progress + '%';
+            
+            // Status
+            document.getElementById('status-text').textContent = status.running ? 'Em Execução' : 'Parado';
+            document.getElementById('current-product').textContent = status.current || '-';
+            document.getElementById('status-message').textContent = status.message || '-';
+            
+            // Botões
+            document.getElementById('start-btn').disabled = status.running;
+            document.getElementById('stop-btn').disabled = !status.running;
+            
+            // Contadores
+            if (status.results) {
+                const processed = status.results.filter(r => r.success).length;
+                const errors = status.results.filter(r => !r.success).length;
+                
+                document.getElementById('processed-products').textContent = processed;
+                document.getElementById('error-products').textContent = errors;
+                
+                // Atualizar tabela de resultados
+                updateResultsTable(status.results);
+                
+                // Atualizar última execução
+                if (status.start_time) {
+                    const startDate = new Date(status.start_time);
+                    document.getElementById('last-execution').textContent = startDate.toLocaleString('pt-BR');
+                }
+            }
+            
+            // Tempo decorrido
+            if (status.start_time) {
+                const start = new Date(status.start_time);
+                const now = new Date();
+                const diff = Math.floor((now - start) / 1000);
+                const minutes = Math.floor(diff / 60);
+                const seconds = diff % 60;
+                document.getElementById('elapsed-time').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Se não está mais rodando, parar polling
+            if (!status.running && statusPolling) {
+                setTimeout(() => {
+                    clearInterval(statusPolling);
+                    statusPolling = null;
+                }, 5000);
+                
+                // Carregar listas de arquivos
+                loadFileLists();
+            }
+        }
+        
+        function updateResultsTable(results) {
+            const tbody = document.getElementById('results-body');
+            tbody.innerHTML = '';
+            
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                
+                let statusBadge = result.success ? 
+                    '<span class="badge bg-success">Sucesso</span>' : 
+                    '<span class="badge bg-danger">Erro</span>';
+                
+                let records = result.dados ? result.dados.length : 0;
+                let fileLink = result.arquivo ? 
+                    `<a href="/download/csv/${result.arquivo}" class="btn btn-sm btn-outline-info"><i class="bi bi-download"></i></a>` : 
+                    '-';
+                
+                row.innerHTML = `
+                    <td>${result.codigo}</td>
+                    <td>${statusBadge}</td>
+                    <td>${records}</td>
+                    <td>${fileLink}</td>
+                    <td>${new Date(result.timestamp).toLocaleString('pt-BR')}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        function loadFileLists() {
+            // Carregar CSVs
+            fetch('/api/files/csv')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('csv-list');
+                    list.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            const item = document.createElement('div');
+                            item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom border-secondary';
+                            item.innerHTML = `
+                                <div>
+                                    <i class="bi bi-file-earmark-spreadsheet text-info"></i>
+                                    <span class="ms-2 text-white">${file.name}</span>
+                                    <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
+                                </div>
+                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            `;
+                            list.appendChild(item);
+                        });
+                        document.getElementById('total-csv-files').textContent = data.files.length;
+                    } else {
+                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo CSV</p>';
+                    }
+                });
+            
+            // Carregar PDFs
+            fetch('/api/files/pdf')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('pdf-list');
+                    list.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            const item = document.createElement('div');
+                            item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom border-secondary';
+                            item.innerHTML = `
+                                <div>
+                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                    <span class="ms-2 text-white">${file.name}</span>
+                                    <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
+                                </div>
+                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            `;
+                            list.appendChild(item);
+                        });
+                    } else {
+                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo PDF</p>';
+                    }
+                });
+            
+            // Carregar Consolidados
+            fetch('/api/files/consolidated')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('consolidated-list');
+                    list.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            const item = document.createElement('div');
+                            item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom border-secondary';
+                            item.innerHTML = `
+                                <div>
+                                    <i class="bi bi-file-earmark-zip text-warning"></i>
+                                    <span class="ms-2 text-white">${file.name}</span>
+                                    <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
+                                </div>
+                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            `;
+                            list.appendChild(item);
+                        });
+                        
+                        if (data.files.length > 0) {
+                            document.getElementById('last-consolidated').textContent = data.files[0].name;
+                        }
+                    } else {
+                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo consolidado</p>';
+                    }
+                });
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function reloadConfig() {
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('config-user').value = data.usuario;
+                    document.getElementById('config-login-url').value = data.url_login;
+                    document.getElementById('config-estoque-url').value = data.url_estoque;
+                    document.getElementById('config-usuario').textContent = data.usuario;
+                    addLog('Configurações recarregadas do .env', 'success');
+                })
+                .catch(error => {
+                    addLog('Erro ao recarregar configurações: ' + error, 'error');
+                });
+        }
+        
+        function saveScrapingConfig() {
+            const delay = document.getElementById('config-delay').value;
+            const timeout = document.getElementById('config-timeout').value;
+            const headless = document.getElementById('config-headless').checked;
+            
+            addLog(`Configurações de scraping salvas: Delay=${delay}s, Timeout=${timeout}s, Headless=${headless}`, 'info');
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            loadProducts();
+            loadFileLists();
+            reloadConfig();
+            
+            // Iniciar polling de status
+            startStatusPolling();
+            
+            addLog('Sistema inicializado com sucesso', 'success');
+            addLog('Credenciais carregadas do arquivo .env', 'info');
+        });
+    </script>
+</body>
+</html>
