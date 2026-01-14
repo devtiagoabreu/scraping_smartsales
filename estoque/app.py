@@ -1,3 +1,4 @@
+# app.py
 import os
 import csv
 import json
@@ -26,6 +27,8 @@ import base64
 from io import BytesIO, StringIO
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+import sys
+sys.path.append('.')  # Para importar o consolidator
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -173,11 +176,11 @@ class DGBScraper:
             # Verificar elementos que indicam login bem sucedido
             try:
                 # Verificar se existe o menu ou elementos da dashboard
-                self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "topo")))
+                self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "main-sidebar")))
                 logger.info("Login realizado com sucesso!")
                 
-                # AGORA VAMOS DIRETO PARA A URL DE ESTOQUE
-                return self.navigate_to_stock_page()
+                # AGORA VAMOS NAVEGAR ATÉ A PÁGINA DE ESTOQUE USANDO O MENU
+                return self.navigate_to_stock_page_via_menu()
                 
             except TimeoutException:
                 # Verificar se há mensagem de erro
@@ -196,18 +199,115 @@ class DGBScraper:
                     return False
                 else:
                     logger.info("Login aparentemente bem sucedido (URL mudou)")
-                    # Tentar ir para a página de estoque mesmo assim
-                    return self.navigate_to_stock_page()
+                    # Tentar navegar para a página de estoque mesmo assim
+                    return self.navigate_to_stock_page_via_menu()
                 
         except Exception as e:
             logger.error(f"Erro durante login: {str(e)}")
             self.take_screenshot("erro_login")
             return False
     
-    def navigate_to_stock_page(self):
-        """Navega DIRETAMENTE para a página de consulta de estoque via URL do .env"""
+    def navigate_to_stock_page_via_menu(self):
+        """Navega para a página de estoque usando o menu lateral"""
         try:
-            logger.info(f"Navegando DIRETAMENTE para página de consulta de estoque: {self.url_estoque}")
+            logger.info("Navegando para página de estoque via menu...")
+            
+            # Primeiro, precisamos expandir o menu "Estoque"
+            # Localizar o item do menu "Estoque"
+            try:
+                # Procurar o link ou botão que contém "Estoque" no texto
+                menu_estoque = None
+                
+                # Estratégia 1: Procurar por texto no menu lateral
+                xpaths = [
+                    "//a[contains(text(), 'Estoque')]",
+                    "//a[contains(., 'Estoque')]",
+                    "//*[contains(text(), 'Estoque') and contains(@class, 'nav-link')]",
+                    "//p[contains(text(), 'Estoque')]/parent::a",
+                    "//*[contains(text(), 'Estoque') and contains(@class, 'nav-item')]//a"
+                ]
+                
+                for xpath in xpaths:
+                    try:
+                        menu_estoque = self.driver.find_element(By.XPATH, xpath)
+                        logger.info(f"Menu Estoque encontrado com XPath: {xpath}")
+                        break
+                    except:
+                        continue
+                
+                if not menu_estoque:
+                    # Estratégia 2: Procurar no menu lateral por classe
+                    menu_items = self.driver.find_elements(By.CSS_SELECTOR, ".nav-link, .nav-item a")
+                    for item in menu_items:
+                        if "estoque" in item.text.lower():
+                            menu_estoque = item
+                            logger.info("Menu Estoque encontrado por texto")
+                            break
+                
+                if menu_estoque:
+                    # Clicar no menu Estoque para expandir
+                    menu_estoque.click()
+                    time.sleep(2)
+                    
+                    # Agora procurar o submenu "Previsão de estoque"
+                    submenu_previsao = None
+                    
+                    # Procurar o link específico para previsão de estoque
+                    submenu_xpaths = [
+                        "//a[contains(text(), 'Previsão de estoque')]",
+                        "//a[contains(., 'Previsão de estoque')]",
+                        "//a[@href='estoquePrevisaoConsulta.jsf']",
+                        "//a[contains(@href, 'estoquePrevisaoConsulta')]"
+                    ]
+                    
+                    for xpath in submenu_xpaths:
+                        try:
+                            submenu_previsao = self.driver.find_element(By.XPATH, xpath)
+                            logger.info(f"Submenu Previsão encontrado com XPath: {xpath}")
+                            break
+                        except:
+                            continue
+                    
+                    if submenu_previsao:
+                        # Clicar no submenu
+                        submenu_previsao.click()
+                        time.sleep(5)
+                        
+                        # Verificar se estamos na página correta
+                        current_url = self.driver.current_url
+                        logger.info(f"URL após navegação: {current_url}")
+                        
+                        if "estoquePrevisaoConsulta" in current_url:
+                            logger.info("Página de estoque carregada com sucesso via menu!")
+                            self.take_screenshot("pagina_estoque_via_menu")
+                            return True
+                        else:
+                            logger.warning(f"Não está na URL esperada. Tentando direto...")
+                            # Tentar acesso direto
+                            return self.navigate_direct_to_stock_page()
+                    else:
+                        logger.error("Submenu 'Previsão de estoque' não encontrado")
+                        # Tentar acesso direto
+                        return self.navigate_direct_to_stock_page()
+                else:
+                    logger.error("Menu 'Estoque' não encontrado")
+                    # Tentar acesso direto
+                    return self.navigate_direct_to_stock_page()
+                    
+            except Exception as e:
+                logger.error(f"Erro ao navegar pelo menu: {str(e)}")
+                self.take_screenshot("erro_navegacao_menu")
+                # Tentar acesso direto como fallback
+                return self.navigate_direct_to_stock_page()
+                
+        except Exception as e:
+            logger.error(f"Erro geral na navegação: {str(e)}")
+            return self.navigate_direct_to_stock_page()
+    
+    def navigate_direct_to_stock_page(self):
+        """Tenta acesso direto à URL de estoque como fallback"""
+        try:
+            logger.info("Tentando acesso direto à página de estoque...")
             
             # Ir DIRETAMENTE para a URL de estoque
             self.driver.get(self.url_estoque)
@@ -217,9 +317,9 @@ class DGBScraper:
             
             # Verificar se estamos na página correta
             current_url = self.driver.current_url
-            logger.info(f"URL atual após navegação: {current_url}")
+            logger.info(f"URL após acesso direto: {current_url}")
             
-            self.take_screenshot("depois_navegacao_estoque")
+            self.take_screenshot("depois_acesso_direto_estoque")
             
             # Tentar encontrar o campo de produto para confirmar que carregou
             try:
@@ -252,9 +352,13 @@ class DGBScraper:
                 return False
             
         except Exception as e:
-            logger.error(f"Erro ao navegar para página de estoque: {str(e)}")
-            self.take_screenshot("erro_navegacao_estoque")
+            logger.error(f"Erro no acesso direto à página de estoque: {str(e)}")
+            self.take_screenshot("erro_acesso_direto_estoque")
             return False
+    
+    def navigate_to_stock_page(self):
+        """Método principal de navegação - tenta menu primeiro, depois direto"""
+        return self.navigate_to_stock_page_via_menu()
     
     def search_product(self, produto_codigo, situacao="TINTO"):
         """Realiza pesquisa de um produto específico"""
@@ -270,6 +374,14 @@ class DGBScraper:
                         'error': 'Não conseguiu acessar página de estoque'
                     }
             
+            # Limpar campos anteriores (se houver dados)
+            try:
+                # Tentar limpar campo produto
+                produto_field = self.driver.find_element(By.ID, "produto")
+                produto_field.clear()
+            except:
+                pass
+            
             # Encontrar e preencher campo de produto
             try:
                 # Tentar múltiplas estratégias para encontrar o campo
@@ -278,7 +390,8 @@ class DGBScraper:
                     (By.ID, "produto"),
                     (By.NAME, "produto"),
                     (By.CSS_SELECTOR, "input[name*='produto']"),
-                    (By.XPATH, "//input[contains(@id, 'produto') or contains(@name, 'produto')]")
+                    (By.XPATH, "//input[contains(@id, 'produto') or contains(@name, 'produto')]"),
+                    (By.XPATH, "//label[contains(text(), 'Produto')]/following-sibling::input")
                 ]
                 
                 for by, value in strategies:
@@ -292,6 +405,7 @@ class DGBScraper:
                 if produto_field:
                     produto_field.clear()
                     produto_field.send_keys(str(produto_codigo))
+                    logger.info(f"Produto {produto_codigo} preenchido")
                 else:
                     logger.error("Não encontrou campo de produto")
                     return {
@@ -315,7 +429,8 @@ class DGBScraper:
                     (By.ID, "situacao"),
                     (By.NAME, "situacao"),
                     (By.CSS_SELECTOR, "input[name*='situacao']"),
-                    (By.XPATH, "//input[contains(@id, 'situacao') or contains(@name, 'situacao')]")
+                    (By.XPATH, "//input[contains(@id, 'situacao') or contains(@name, 'situacao')]"),
+                    (By.XPATH, "//label[contains(text(), 'Situação')]/following-sibling::input")
                 ]
                 
                 for by, value in strategies:
@@ -329,6 +444,7 @@ class DGBScraper:
                 if situacao_field:
                     situacao_field.clear()
                     situacao_field.send_keys(situacao)
+                    logger.info(f"Situação '{situacao}' preenchida")
                 else:
                     logger.warning("Não encontrou campo de situação específico")
                     # Tentar encontrar select em vez de input
@@ -352,8 +468,9 @@ class DGBScraper:
                     (By.CSS_SELECTOR, "input[value*='Pesquisar'], input[value*='PESQUISAR']"),
                     (By.XPATH, "//input[@type='submit' and contains(@value, 'Pesquisar')]"),
                     (By.XPATH, "//button[contains(text(), 'Pesquisar')]"),
-                    (By.ID, "botaoPesquisar"),
-                    (By.CSS_SELECTOR, "input[type='submit']")
+                    (By.ID, "j_idt67"),  # ID específico do botão Pesquisar
+                    (By.CSS_SELECTOR, "input[type='submit']"),
+                    (By.XPATH, "//input[@type='submit']")
                 ]
                 
                 for by, value in strategies:
@@ -368,9 +485,15 @@ class DGBScraper:
                         continue
                 
                 if pesquisar_button:
+                    # Rolar até o botão para garantir que está visível
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", pesquisar_button)
+                    time.sleep(1)
                     pesquisar_button.click()
+                    logger.info("Botão Pesquisar clicado")
                 else:
                     logger.error("Não encontrou botão Pesquisar")
+                    # Tirar screenshot para debug
+                    self.take_screenshot(f"erro_botao_pesquisar_{produto_codigo}")
                     return {
                         'success': False,
                         'codigo': produto_codigo,
@@ -481,14 +604,14 @@ class DGBScraper:
             
             # Estratégia 2: Procurar por divs que possam conter dados
             if not dados:
-                divs_com_dados = soup.find_all(['div', 'section', 'article'])
-                for div in divs_com_dados:
-                    texto = div.get_text(strip=True, separator='\n')
-                    if len(texto) > 50 and ("estoque" in texto.lower() or "previsão" in texto.lower()):
-                        linhas_texto = texto.split('\n')
-                        for linha_texto in linhas_texto:
-                            if linha_texto.strip() and len(linha_texto.strip()) > 10:
-                                dados.append([produto_codigo, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), linha_texto])
+                # Procurar na div específica de resultados
+                resultado_div = soup.find('div', {'id': 'estoquePrevisaoList'})
+                if resultado_div:
+                    texto = resultado_div.get_text(strip=True, separator='\n')
+                    linhas_texto = texto.split('\n')
+                    for linha_texto in linhas_texto:
+                        if linha_texto.strip() and len(linha_texto.strip()) > 5:
+                            dados.append([produto_codigo, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), linha_texto])
             
             logger.info(f"Extraídos {len(dados)} registros para produto {produto_codigo}")
             
@@ -731,6 +854,8 @@ def run_scraping():
             scraping_status['running'] = False
             return
         
+        scraping_status['message'] = 'Login realizado com sucesso! Iniciando consultas...'
+        
         # Processar cada produto
         for i, produto in enumerate(produtos, 1):
             if not scraping_status['running']:
@@ -835,22 +960,56 @@ def stop_scraping():
     scraping_status['running'] = False
     return jsonify({'success': True, 'message': 'Scraping sendo interrompido'})
 
+# app.py (APENAS a função consolidate() precisa ser atualizada)
 @app.route('/api/consolidate', methods=['POST'])
 def consolidate():
-    """Consolida os dados coletados"""
-    filename, message = consolidar_dados()
-    
-    if filename:
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'message': message
-        })
-    else:
+    """Consolida os dados coletados usando o sistema formatado"""
+    try:
+        # Importar e usar o novo consolidador formatado
+        from consolidator import consolidar_dados_formatado
+        
+        resultado, mensagem = consolidar_dados_formatado()
+        
+        if resultado:
+            # Para compatibilidade, mantenha 'total_quantidade' e adicione novos campos
+            total_quantidade = resultado.get('total_quantidade', 0)  # Campo antigo
+            total_estoque = resultado.get('total_estoque', total_quantidade)  # Campo novo
+            total_pedidos = resultado.get('total_pedidos', 0)
+            total_disponivel = resultado.get('total_disponivel', 0)
+            
+            return jsonify({
+                'success': True,
+                'message': mensagem,
+                'resultado': resultado,
+                'arquivos': {
+                    'csv': resultado.get('arquivo_csv'),
+                    'excel': resultado.get('arquivo_excel'),
+                    'pivot': resultado.get('arquivo_pivot', ''),
+                    'json': f"resumo_consolidacao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                },
+                'estatisticas': {
+                    'total_registros': resultado.get('total_registros', 0),
+                    'total_quantidade': total_quantidade,  # Mantido para compatibilidade
+                    'total_estoque': total_estoque,        # Novo campo
+                    'total_pedidos': total_pedidos,        # Novo campo
+                    'total_disponivel': total_disponivel,  # Novo campo
+                    'produtos_unicos': resultado.get('produtos_unicos', 0),
+                    'cores_unicas': resultado.get('cores_unicas', 0),
+                    'arquivos_processados': resultado.get('arquivos_processados', 0)
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': mensagem
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Erro na consolidação: {str(e)}")
         return jsonify({
             'success': False,
-            'message': message
-        }), 400
+            'message': f'Erro na consolidação: {str(e)}'
+        }), 500
 
 @app.route('/api/files/csv')
 def list_csv_files():
@@ -911,6 +1070,29 @@ def list_pdf_files():
         return jsonify({'files': files})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+# Adicione esta nova rota para visualizar o resumo:
+@app.route('/api/consolidation/summary/<filename>')
+def get_consolidation_summary(filename):
+    """Retorna o resumo da consolidação em JSON"""
+    try:
+        filepath = os.path.join('data/consolidated', filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                import json
+                data = json.load(f)
+            return jsonify({'success': True, 'data': data})
+        else:
+            return jsonify({'success': False, 'message': 'Arquivo não encontrado'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# CORREÇÃO AQUI: Renomear a segunda rota para evitar conflito
+@app.route('/download/consolidated/files/<filename>')
+def download_consolidated_file(filename):
+    """Baixa arquivo consolidado (CSV, Excel ou JSON) - RENOMEADA"""
+    return send_from_directory('data/consolidated', filename, as_attachment=True)
+
 
 @app.route('/download/csv/<filename>')
 def download_csv(filename):
@@ -919,13 +1101,63 @@ def download_csv(filename):
 
 @app.route('/download/consolidated/<filename>')
 def download_consolidated(filename):
-    """Baixa arquivo consolidado"""
+    """Baixa arquivo consolidado CSV"""
     return send_from_directory(CONSOLIDATED_FOLDER, filename, as_attachment=True)
 
 @app.route('/download/pdf/<filename>')
 def download_pdf(filename):
     """Baixa arquivo PDF"""
     return send_from_directory(PDF_FOLDER, filename, as_attachment=True)
+
+@app.route('/api/debug/csv/<filename>')
+def debug_csv(filename):
+    """Endpoint para debug - mostra conteúdo do CSV"""
+    filepath = os.path.join(CSV_FOLDER, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Arquivo não encontrado'}), 404
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            content = f.read(1000)  # Ler apenas os primeiros 1000 caracteres
+        return jsonify({
+            'filename': filename,
+            'preview': content,
+            'lines': content.split('\n')[:10]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/debug/csv-content/<filename>')
+def debug_csv_content(filename):
+    """Endpoint para debug - mostra conteúdo completo do CSV"""
+    filepath = os.path.join(CSV_FOLDER, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Arquivo não encontrado'}), 404
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            content = f.read()
+        
+        # Analisar estrutura
+        lines = content.split('\n')
+        estrutura = []
+        for i, line in enumerate(lines[:10]):  # Mostrar apenas primeiras 10 linhas
+            if line.strip():
+                parts = line.split(';')
+                estrutura.append({
+                    'linha': i + 1,
+                    'partes': len(parts),
+                    'conteudo': line[:100] + ('...' if len(line) > 100 else '')
+                })
+        
+        return jsonify({
+            'filename': filename,
+            'total_lines': len(lines),
+            'estrutura': estrutura,
+            'preview': content[:1000]  # Primeiros 1000 caracteres
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/test-login', methods=['POST'])
 def test_login():

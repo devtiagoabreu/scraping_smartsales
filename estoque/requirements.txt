@@ -8,3 +8,5 @@ webdriver-manager==4.0.1
 requests==2.31.0
 lxml==4.9.3
 python-dotenv==1.0.0
+openpyxl==3.1.2  # Para gerar Excel
+numpy==1.24.3

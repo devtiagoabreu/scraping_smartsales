@@ -84,6 +84,34 @@
             max-height: 400px;
             overflow-y: auto;
         }
+        #results-container {
+            background: rgba(0,0,0,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .saldo-positivo {
+            color: #198754;
+            font-weight: bold;
+        }
+        .saldo-negativo {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .download-btn {
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -177,6 +205,9 @@
                         <div class="mt-3">
                             <button class="btn btn-info w-100" onclick="testLogin()">
                                 <i class="bi bi-shield-check"></i> Testar Login
+                            </button>
+                            <button class="btn btn-secondary w-100 mt-2" onclick="testDebug()">
+                                <i class="bi bi-bug"></i> Teste Debug
                             </button>
                         </div>
                     </div>
@@ -273,6 +304,22 @@
                             
                             <!-- Tab Resultados -->
                             <div class="tab-pane fade" id="results" role="tabpanel">
+                                <div id="results-container">
+                                    <!-- Resultados da consolidação serão exibidos aqui -->
+                                    <div class="alert alert-info">
+                                        <h5><i class="bi bi-info-circle"></i> Informações</h5>
+                                        <p>Clique em <strong>"Consolidar Dados"</strong> para processar os arquivos CSV e gerar relatórios estruturados.</p>
+                                        <p>O sistema irá criar uma planilha com múltiplas abas, incluindo:</p>
+                                        <ul>
+                                            <li>Todos os dados estruturados</li>
+                                            <li>Resumo por produto</li>
+                                            <li>Resumo por cor</li>
+                                            <li>Pronta entrega</li>
+                                            <li>Datas futuras</li>
+                                            <li>Tabela pivot para análise</li>
+                                        </ul>
+                                    </div>
+                                </div>
                                 <table class="table table-dark table-hover" id="results-table">
                                     <thead>
                                         <tr>
@@ -417,6 +464,7 @@
                 if (log.type === 'success') badgeClass = 'bg-success';
                 if (log.type === 'error') badgeClass = 'bg-danger';
                 if (log.type === 'warning') badgeClass = 'bg-warning';
+                if (log.type === 'debug') badgeClass = 'bg-info';
                 
                 html += `
                     <div class="log-entry">
@@ -427,6 +475,9 @@
             });
             
             logContent.innerHTML = html;
+            
+            // Auto-scroll para o topo
+            logContent.scrollTop = 0;
         }
         
         function clearLogs() {
@@ -525,6 +576,19 @@
         }
         
         function consolidateData() {
+            addLog('Iniciando consolidação avançada...', 'info');
+            
+            // Mostrar indicador de carregamento
+            document.getElementById('results-container').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Processando...</span>
+                    </div>
+                    <p class="mt-2">Processando arquivos CSV e gerando relatórios estruturados...</p>
+                    <p class="text-muted"><small>Isso pode levar alguns minutos dependendo da quantidade de dados</small></p>
+                </div>
+            `;
+            
             fetch('/api/consolidate', {
                 method: 'POST',
                 headers: {
@@ -534,15 +598,258 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    addLog('Dados consolidados: ' + data.message, 'success');
+                    addLog('✅ Consolidação concluída com sucesso!', 'success');
+                    
+                    // Mostrar estatísticas completas
+                    const stats = data.estatisticas;
+                    const totalEstoque = parseFloat(stats.total_estoque || stats.total_quantidade || 0);
+                    const totalPedidos = parseFloat(stats.total_pedidos || 0);
+                    const totalDisponivel = parseFloat(stats.total_disponivel || 0);
+                    const saldo = totalEstoque - totalPedidos;
+                    
+                    const statsHtml = `
+                        <div class="alert alert-success">
+                            <h5><i class="bi bi-bar-chart-fill"></i> Estatísticas da Consolidação</h5>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-3">
+                                    <div class="stats-card">
+                                        <h6><i class="bi bi-list-check"></i> Registros</h6>
+                                        <h3>${stats.total_registros.toLocaleString('pt-BR')}</h3>
+                                        <small>Total de linhas processadas</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stats-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                                        <h6><i class="bi bi-box"></i> Produtos</h6>
+                                        <h3>${stats.produtos_unicos}</h3>
+                                        <small>Produtos únicos</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stats-card" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);">
+                                        <h6><i class="bi bi-palette"></i> Cores</h6>
+                                        <h3>${stats.cores_unicas || 0}</h3>
+                                        <small>Cores únicas</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stats-card" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">
+                                        <h6><i class="bi bi-folder"></i> Arquivos</h6>
+                                        <h3>${stats.arquivos_processados}</h3>
+                                        <small>CSVs processados</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-3">
+                                    <div class="card bg-dark text-white">
+                                        <div class="card-body">
+                                            <h6><i class="bi bi-box-seam"></i> Estoque Total</h6>
+                                            <h3 class="${totalEstoque >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
+                                                ${totalEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                            </h3>
+                                            <small>Quantidade em estoque</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-dark text-white">
+                                        <div class="card-body">
+                                            <h6><i class="bi bi-cart-check"></i> Pedidos Total</h6>
+                                            <h3 class="${totalPedidos >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
+                                                ${totalPedidos.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                            </h3>
+                                            <small>Quantidade em pedidos</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-dark text-white">
+                                        <div class="card-body">
+                                            <h6><i class="bi bi-check-circle"></i> Disponível Total</h6>
+                                            <h3 class="${totalDisponivel >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
+                                                ${totalDisponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                            </h3>
+                                            <small>Quantidade disponível</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-dark text-white">
+                                        <div class="card-body">
+                                            <h6><i class="bi bi-calculator"></i> Saldo Final</h6>
+                                            <h3 class="${saldo >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
+                                                ${saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                            </h3>
+                                            <small>Estoque - Pedidos</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="alert alert-info">
+                                        <h6><i class="bi bi-info-circle"></i> Resumo da Consolidação</h6>
+                                        <p><strong>Processamento:</strong> ${stats.total_registros.toLocaleString('pt-BR')} registros de ${stats.arquivos_processados} arquivos</p>
+                                        <p><strong>Produtos únicos:</strong> ${stats.produtos_unicos} diferentes</p>
+                                        <p><strong>Cores únicas:</strong> ${stats.cores_unicas || 0} variações</p>
+                                        <p><strong>Disponibilidade:</strong> ${(totalDisponivel > 0 ? totalDisponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00')} unidades disponíveis</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert alert-warning">
+                                        <h6><i class="bi bi-lightbulb"></i> Análise Rápida</h6>
+                                        ${saldo >= 0 ? 
+                                            `<p class="text-success"><i class="bi bi-check-circle-fill"></i> <strong>Situação Positiva:</strong> Há estoque suficiente para atender todos os pedidos.</p>` :
+                                            `<p class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> <strong>Atenção:</strong> Estoque insuficiente para atender todos os pedidos.</p>`
+                                        }
+                                        <p><strong>Taxa de ocupação:</strong> ${totalEstoque > 0 ? ((totalPedidos / totalEstoque * 100).toFixed(2)) : '0,00'}% do estoque está comprometido</p>
+                                        <p><strong>Disponibilidade:</strong> ${totalEstoque > 0 ? ((totalDisponivel / totalEstoque * 100).toFixed(2)) : '0,00'}% do estoque está disponível</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('results-container').innerHTML = statsHtml;
+                    
+                    // Mostrar links para download
+                    const files = data.arquivos;
+                    let filesHtml = '<div class="mt-4"><h5><i class="bi bi-download"></i> Arquivos Gerados</h5>';
+                    filesHtml += '<div class="row">';
+                    
+                    if (files.excel) {
+                        filesHtml += `
+                            <div class="col-md-6 mb-3">
+                                <div class="card download-btn bg-success text-white">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-file-earmark-excel display-4"></i>
+                                        <h5 class="mt-2">Excel Completo</h5>
+                                        <p class="small">Múltiplas abas com análise completa</p>
+                                        <a href="/download/consolidated/files/${files.excel}" class="btn btn-light btn-sm">
+                                            <i class="bi bi-download"></i> Baixar Excel
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (files.csv) {
+                        filesHtml += `
+                            <div class="col-md-6 mb-3">
+                                <div class="card download-btn bg-info text-white">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-file-earmark-spreadsheet display-4"></i>
+                                        <h5 class="mt-2">CSV Estruturado</h5>
+                                        <p class="small">Dados tabulados prontos para análise</p>
+                                        <a href="/download/consolidated/files/${files.csv}" class="btn btn-light btn-sm">
+                                            <i class="bi bi-download"></i> Baixar CSV
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (files.pivot) {
+                        filesHtml += `
+                            <div class="col-md-6 mb-3">
+                                <div class="card download-btn bg-warning text-white">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-table display-4"></i>
+                                        <h5 class="mt-2">Tabela Pivot</h5>
+                                        <p class="small">Análise agregada por produto e cor</p>
+                                        <a href="/download/consolidated/files/${files.pivot}" class="btn btn-light btn-sm">
+                                            <i class="bi bi-download"></i> Baixar Pivot
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    filesHtml += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card download-btn bg-secondary text-white">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-file-earmark-text display-4"></i>
+                                    <h5 class="mt-2">Resumo JSON</h5>
+                                    <p class="small">Estatísticas em formato estruturado</p>
+                                    <button class="btn btn-light btn-sm" onclick="viewJsonSummary('${files.json || `resumo_consolidacao_${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}.json`}')">
+                                        <i class="bi bi-eye"></i> Visualizar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    filesHtml += '</div></div>';
+                    document.getElementById('results-container').innerHTML += filesHtml;
+                    
+                    // Atualizar lista de arquivos
                     loadFileLists();
+                    
+                    // Atualizar último consolidado
+                    if (files.excel) {
+                        document.getElementById('last-consolidated').textContent = files.excel;
+                    }
+                    
                 } else {
-                    addLog('Erro na consolidação: ' + data.message, 'error');
+                    addLog('❌ Erro na consolidação: ' + data.message, 'error');
+                    document.getElementById('results-container').innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle"></i> Erro na Consolidação</h5>
+                            <p>${data.message || 'Erro desconhecido'}</p>
+                            <button class="btn btn-warning btn-sm" onclick="testDebug()">
+                                <i class="bi bi-bug"></i> Testar Debug
+                            </button>
+                        </div>
+                    `;
                 }
             })
             .catch(error => {
-                addLog('Erro na consolidação: ' + error, 'error');
+                addLog('❌ Erro na consolidação: ' + error, 'error');
+                document.getElementById('results-container').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-triangle"></i> Erro de Conexão</h5>
+                        <p>Não foi possível conectar ao servidor para consolidar os dados.</p>
+                        <p><small>Erro: ${error}</small></p>
+                    </div>
+                `;
             });
+        }
+        
+        function viewJsonSummary(filename) {
+            addLog('Carregando resumo JSON...', 'info');
+            
+            fetch(`/api/consolidation/summary/${filename}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const jsonData = data.data;
+                        const jsonHtml = `
+                            <div class="alert alert-info mt-3">
+                                <h6><i class="bi bi-file-earmark-text"></i> Resumo JSON</h6>
+                                <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto; font-size: 12px;">
+${JSON.stringify(jsonData, null, 2)}
+                                </pre>
+                                <button class="btn btn-sm btn-secondary" onclick="document.getElementById('results-container').querySelector('.alert-info').remove()">
+                                    <i class="bi bi-x-circle"></i> Fechar
+                                </button>
+                            </div>
+                        `;
+                        document.getElementById('results-container').innerHTML += jsonHtml;
+                    } else {
+                        addLog('Erro ao carregar JSON: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    addLog('Erro ao carregar resumo JSON: ' + error, 'error');
+                });
         }
         
         function testLogin() {
@@ -557,14 +864,47 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    addLog('Login testado com sucesso!', 'success');
+                    addLog('✅ Login testado com sucesso!', 'success');
                 } else {
-                    addLog('Falha no login: ' + (data.error || 'Verifique as credenciais no arquivo .env'), 'error');
+                    addLog('❌ Falha no login: ' + (data.error || 'Verifique as credenciais no arquivo .env'), 'error');
                 }
             })
             .catch(error => {
-                addLog('Erro ao testar login: ' + error, 'error');
+                addLog('❌ Erro ao testar login: ' + error, 'error');
             });
+        }
+        
+        function testDebug() {
+            addLog('Executando teste de debug...', 'debug');
+            
+            // Testar se há arquivos CSV
+            fetch('/api/files/csv')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.files && data.files.length > 0) {
+                        addLog(`✅ Encontrados ${data.files.length} arquivos CSV`, 'success');
+                        
+                        // Testar o primeiro arquivo
+                        const firstFile = data.files[0].name;
+                        fetch(`/api/debug/csv/${firstFile}`)
+                            .then(response => response.json())
+                            .then(debugData => {
+                                addLog(`📄 Conteúdo do arquivo ${firstFile}:`, 'debug');
+                                if (debugData.preview) {
+                                    const preview = debugData.preview.substring(0, 200);
+                                    addLog(`Preview: ${preview}...`, 'debug');
+                                }
+                            })
+                            .catch(error => {
+                                addLog(`❌ Erro ao ler arquivo ${firstFile}: ${error}`, 'error');
+                            });
+                    } else {
+                        addLog('⚠️ Nenhum arquivo CSV encontrado para teste', 'warning');
+                    }
+                })
+                .catch(error => {
+                    addLog('❌ Erro ao listar arquivos CSV: ' + error, 'error');
+                });
         }
         
         function startStatusPolling() {
@@ -685,9 +1025,14 @@
                                     <span class="ms-2 text-white">${file.name}</span>
                                     <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
                                 </div>
-                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
-                                    <i class="bi bi-download"></i>
-                                </a>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="previewFile('${file.name}', 'csv')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
                             `;
                             list.appendChild(item);
                         });
@@ -742,9 +1087,14 @@
                                     <span class="ms-2 text-white">${file.name}</span>
                                     <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
                                 </div>
-                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
-                                    <i class="bi bi-download"></i>
-                                </a>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="previewFile('${file.name}', 'consolidated')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
                             `;
                             list.appendChild(item);
                         });
@@ -756,6 +1106,43 @@
                         list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo consolidado</p>';
                     }
                 });
+        }
+        
+        function previewFile(filename, type) {
+            addLog(`Visualizando preview de ${filename}...`, 'debug');
+            
+            let endpoint = '';
+            if (type === 'csv') {
+                endpoint = `/api/debug/csv/${filename}`;
+            } else if (type === 'consolidated') {
+                // Para arquivos consolidados, você pode adicionar um endpoint similar
+                addLog(`Visualização para arquivos consolidados ainda não implementada`, 'warning');
+                return;
+            }
+            
+            if (endpoint) {
+                fetch(endpoint)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.preview) {
+                            const previewHtml = `
+                                <div class="alert alert-info mt-3">
+                                    <h6><i class="bi bi-eye"></i> Preview: ${filename}</h6>
+                                    <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto; font-size: 11px;">
+${data.preview.substring(0, 500)}${data.preview.length > 500 ? '...' : ''}
+                                    </pre>
+                                    <button class="btn btn-sm btn-secondary" onclick="this.parentElement.remove()">
+                                        <i class="bi bi-x-circle"></i> Fechar
+                                    </button>
+                                </div>
+                            `;
+                            document.getElementById('results-container').innerHTML += previewHtml;
+                        }
+                    })
+                    .catch(error => {
+                        addLog(`Erro ao visualizar arquivo: ${error}`, 'error');
+                    });
+            }
         }
         
         function formatBytes(bytes) {
@@ -787,6 +1174,16 @@
             const headless = document.getElementById('config-headless').checked;
             
             addLog(`Configurações de scraping salvas: Delay=${delay}s, Timeout=${timeout}s, Headless=${headless}`, 'info');
+            
+            // Aqui você pode implementar o salvamento real das configurações
+            // Por enquanto, apenas mostra uma mensagem
+            document.getElementById('system-status').className = 'badge bg-warning';
+            document.getElementById('system-status').textContent = 'Configurando...';
+            
+            setTimeout(() => {
+                document.getElementById('system-status').className = 'badge bg-success';
+                document.getElementById('system-status').textContent = 'Operacional';
+            }, 2000);
         }
         
         // Inicialização
@@ -803,6 +1200,16 @@
             
             addLog('Sistema inicializado com sucesso', 'success');
             addLog('Credenciais carregadas do arquivo .env', 'info');
+            addLog('Pronto para iniciar scraping e consolidação', 'success');
+            
+            // Verificar se há arquivos CSV existentes
+            fetch('/api/files/csv')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.files && data.files.length > 0) {
+                        addLog(`Encontrados ${data.files.length} arquivos CSV para consolidação`, 'info');
+                    }
+                });
         });
     </script>
 </body>
