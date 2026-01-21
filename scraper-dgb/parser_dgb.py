@@ -1,4 +1,4 @@
-# parser_dgb.py - Parser melhorado para HTML do DGB
+# parser_dgb.py - Parser ATUALIZADO para HTML do DGB
 import re
 import csv
 from datetime import datetime
@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def parse_html_dgb_simples(html_content, produto_codigo):
-    """Parser direto e eficiente para HTML do DGB"""
+    """Parser atualizado para HTML do DGB baseado na estrutura real"""
     registros = []
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     artigo = str(produto_codigo).lstrip('0')
@@ -20,71 +20,79 @@ def parse_html_dgb_simples(html_content, produto_codigo):
         for tag in soup(["script", "style"]):
             tag.decompose()
         
-        # Encontrar todas as tabelas
+        # Método 1: Procurar por tabelas de dados
         tabelas = soup.find_all('table')
         
-        for tabela_idx, tabela in enumerate(tabelas):
-            linhas = tabela.find_all('tr')
+        if not tabelas:
+            logger.warning(f"Nenhuma tabela encontrada para produto {produto_codigo}")
+            # Usar método alternativo de busca por texto
+            return parse_texto_detalhado(html_content, produto_codigo, timestamp, artigo)
+        
+        logger.info(f"Encontradas {len(tabelas)} tabelas para produto {produto_codigo}")
+        
+        # Procurar por todas as ocorrências do produto no HTML
+        texto_completo = soup.get_text(separator='\n')
+        
+        # Dividir em seções baseado em "Produto / Situação / Cor / Desenho / Variante"
+        secoes = re.split(r'Produto\s*/\s*Situação\s*/\s*Cor\s*/\s*Desenho\s*/\s*Variante', texto_completo)
+        
+        # A primeira seção é o cabeçalho, descartar
+        for secao_idx, secao in enumerate(secoes[1:], 1):
+            linhas = secao.strip().split('\n')
             
-            for linha_idx, linha in enumerate(linhas):
-                # Obter texto da linha
-                texto_linha = linha.get_text(separator=' ', strip=True)
+            if not linhas:
+                continue
                 
-                # Verificar se esta linha contém o produto
-                if (produto_codigo in texto_linha or 
-                    artigo in texto_linha or 
-                    f" {produto_codigo} " in texto_linha):
+            # A primeira linha da seção contém os dados do produto
+            descricao_produto = linhas[0].strip() if linhas else ""
+            
+            # Procurar linhas com dados numéricos
+            previsao_atual = "Pronta entrega"
+            
+            for i, linha in enumerate(linhas):
+                linha = linha.strip()
+                
+                # Verificar se é uma data (previsão)
+                match_data = re.search(r'\b(\d{2}/\d{2}/\d{4})\b', linha)
+                if match_data:
+                    previsao_atual = match_data.group(1)
+                    continue
+                
+                # Procurar por linha com 3 valores numéricos no formato brasileiro
+                # Padrão: número com ponto de milhar e vírgula decimal
+                padrao_valores = r'^([\d\.]+,\d{2})\s+([\d\.]+,\d{2})\s+([\d\.]+,\d{2})$'
+                match_valores = re.match(padrao_valores, linha)
+                
+                if match_valores:
+                    estoque = match_valores.group(1)
+                    pedidos = match_valores.group(2)
+                    disponivel = match_valores.group(3)
                     
-                    logger.info(f"Produto {produto_codigo} encontrado na tabela {tabela_idx+1}, linha {linha_idx+1}")
+                    # Criar registro
+                    registro = [
+                        artigo,
+                        timestamp,
+                        f"{descricao_produto}",
+                        previsao_atual,
+                        estoque,
+                        pedidos,
+                        disponivel
+                    ]
+                    registros.append(registro)
                     
-                    # Procurar por dados nas próximas linhas (máximo 5 linhas)
-                    for j in range(linha_idx, min(linha_idx + 5, len(linhas))):
-                        linha_dados = linhas[j]
-                        texto_dados = linha_dados.get_text(separator=' ', strip=True)
-                        
-                        # Procurar por padrão de dados: 3 valores numéricos
-                        padrao = r'(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})'
-                        match = re.search(padrao, texto_dados)
-                        
-                        if match:
-                            # Encontrar previsão
-                            previsao = "Pronta entrega"
-                            
-                            # Verificar se há data na linha anterior
-                            for k in range(max(0, j-2), j):
-                                linha_anterior = linhas[k].get_text(separator=' ', strip=True)
-                                match_data = re.search(r'\b\d{2}/\d{2}/\d{4}\b', linha_anterior)
-                                if match_data:
-                                    previsao = match_data.group(0)
-                                    break
-                            
-                            # Criar registro
-                            registro = [
-                                artigo,
-                                timestamp,
-                                texto_linha[:200],  # Limitar descrição
-                                previsao,
-                                match.group(1),  # Estoque
-                                match.group(2),  # Pedidos
-                                match.group(3)   # Disponível
-                            ]
-                            registros.append(registro)
-                            logger.info(f"  → Registro extraído: {previsao} | {match.group(1)}, {match.group(2)}, {match.group(3)}")
+                    logger.info(f"  → Registro {len(registros)}: {previsao_atual} | Estoque: {estoque} | Pedidos: {pedidos} | Disponível: {disponivel}")
         
-        # Se ainda não encontrou, usar método de busca por texto
+        # Método alternativo: busca mais agressiva no HTML completo
         if not registros:
-            registros = parse_por_texto_completo(html_content, produto_codigo, timestamp, artigo)
+            registros = parse_html_agressivo(html_content, produto_codigo, timestamp, artigo)
         
-        logger.info(f"Total de registros para {produto_codigo}: {len(registros)}")
-        
-        # Se ainda não encontrou, criar um registro vazio para manter o produto na lista
+        # Se ainda não encontrou nada, criar registro vazio
         if not registros:
             logger.warning(f"Nenhum dado extraído para produto {produto_codigo}")
-            # Criar um registro vazio para manter consistência
             registro = [
                 artigo,
                 timestamp,
-                f"Produto {produto_codigo} - Nenhum dado extraído",
+                f"Produto {produto_codigo} - Dados não encontrados",
                 "N/A",
                 "0,00",
                 "0,00",
@@ -92,138 +100,186 @@ def parse_html_dgb_simples(html_content, produto_codigo):
             ]
             registros.append(registro)
         
+        logger.info(f"Total de registros para {produto_codigo}: {len(registros)}")
         return registros
         
     except Exception as e:
-        logger.error(f"Erro no parser para {produto_codigo}: {e}")
-        # Retornar registro vazio em caso de erro
-        return [[artigo, timestamp, f"Produto {produto_codigo} - Erro no parser", "Erro", "0,00", "0,00", "0,00"]]
+        logger.error(f"Erro no parser para {produto_codigo}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        # Retornar registro de erro
+        return [[artigo, timestamp, f"Produto {produto_codigo} - Erro no parser: {str(e)}", "Erro", "0,00", "0,00", "0,00"]]
 
-def parse_por_texto_completo(html_content, produto_codigo, timestamp, artigo):
-    """Método alternativo: busca por texto completo"""
+def parse_texto_detalhado(html_content, produto_codigo, timestamp, artigo):
+    """Método mais detalhado de parsing por texto"""
     registros = []
     
     try:
         soup = BeautifulSoup(html_content, 'html.parser')
-        texto_completo = soup.get_text(separator='\n')
-        linhas = texto_completo.split('\n')
+        texto_completo = soup.get_text(separator=' ')
         
-        for i, linha in enumerate(linhas):
+        # Padrões de busca
+        padroes = [
+            r'(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})',
+            r'([\d\.]+,\d{2})\s+([\d\.]+,\d{2})\s+([\d\.]+,\d{2})',
+            r'Estoque[\s:]*([\d\.,]+).*Pedidos[\s:]*([\d\.,]+).*Disponível[\s:]*([\d\.,]+)'
+        ]
+        
+        # Dividir texto em linhas
+        linhas = texto_completo.split('  ')  # Separar por múltiplos espaços
+        
+        previsao = "Pronta entrega"
+        descricao = f"Produto {produto_codigo}"
+        
+        for linha in linhas:
             linha = linha.strip()
             
-            # Verificar se linha contém o produto
-            if (produto_codigo in linha or 
-                f" {produto_codigo} " in linha or
-                (len(produto_codigo) >= 2 and produto_codigo in linha.replace(' ', ''))):
+            # Verificar se contém o código do produto
+            if str(produto_codigo) in linha:
+                descricao = linha[:200]
+            
+            # Verificar se é uma data
+            match_data = re.search(r'\b(\d{2}/\d{2}/\d{4})\b', linha)
+            if match_data:
+                previsao = match_data.group(1)
+                continue
+            
+            # Procurar por valores
+            for padrao in padroes:
+                matches = re.findall(padrao, linha)
                 
-                # Procurar por dados nas próximas 10 linhas
-                for j in range(i, min(i + 10, len(linhas))):
-                    linha_atual = linhas[j].strip()
-                    
-                    # Procurar por padrão de 3 números com vírgula
-                    padrao = r'(\d[\d\.,]+\d)\s+(\d[\d\.,]+\d)\s+(\d[\d\.,]+\d)'
-                    match = re.search(padrao, linha_atual)
-                    
-                    if match:
-                        # Extrair previsão
-                        previsao = "Pronta entrega"
+                for match in matches:
+                    if len(match) >= 3:
+                        estoque = formatar_valor(match[0])
+                        pedidos = formatar_valor(match[1])
+                        disponivel = formatar_valor(match[2])
                         
-                        # Verificar linhas anteriores para data
-                        for k in range(max(0, j-3), j):
-                            if re.search(r'\d{2}/\d{2}/\d{4}', linhas[k]):
-                                previsao = re.search(r'\d{2}/\d{2}/\d{4}', linhas[k]).group(0)
-                                break
-                        
-                        # Formatar valores
-                        estoque = formatar_valor_csv(match.group(1))
-                        pedidos = formatar_valor_csv(match.group(2))
-                        disponivel = formatar_valor_csv(match.group(3))
-                        
-                        registro = [
-                            artigo,
-                            timestamp,
-                            linha[:200],  # Descrição limitada
-                            previsao,
-                            estoque,
-                            pedidos,
-                            disponivel
-                        ]
-                        registros.append(registro)
-                        
-                        # Parar de procurar mais dados para este produto
-                        break
+                        # Verificar se são valores válidos (não todos zeros)
+                        if estoque != "0,00" or pedidos != "0,00" or disponivel != "0,00":
+                            registro = [
+                                artigo,
+                                timestamp,
+                                descricao,
+                                previsao,
+                                estoque,
+                                pedidos,
+                                disponivel
+                            ]
+                            registros.append(registro)
+                            
+                            logger.info(f"Método detalhado: {previsao} | Estoque: {estoque}")
         
         return registros
         
     except Exception as e:
-        logger.error(f"Erro no parse por texto: {e}")
+        logger.error(f"Erro no parse detalhado: {e}")
         return []
 
-def formatar_valor_csv(valor_str):
-    """Formata valor para CSV no padrão brasileiro"""
+def parse_html_agressivo(html_content, produto_codigo, timestamp, artigo):
+    """Método agressivo: busca por todos os dados numéricos no HTML"""
+    registros = []
+    
     try:
-        # Remover espaços
-        valor_str = str(valor_str).strip().replace(' ', '')
+        soup = BeautifulSoup(html_content, 'html.parser')
         
+        # Encontrar todas as tags <tr> (linhas de tabela)
+        trs = soup.find_all('tr')
+        
+        for tr in trs:
+            texto_linha = tr.get_text(separator=' ', strip=True)
+            
+            # Procurar por padrão de 3 valores
+            padrao = r'(\d[\d\.,]+\d)\s+(\d[\d\.,]+\d)\s+(\d[\d\.,]+\d)'
+            match = re.search(padrao, texto_linha)
+            
+            if match:
+                # Tentar encontrar data na linha anterior
+                previsao = "Pronta entrega"
+                
+                # Verificar a linha atual primeiro
+                match_data = re.search(r'\b(\d{2}/\d{2}/\d{4})\b', texto_linha)
+                if match_data:
+                    previsao = match_data.group(1)
+                
+                # Verificar linha anterior
+                if tr.previous_sibling and hasattr(tr.previous_sibling, 'get_text'):
+                    texto_anterior = tr.previous_sibling.get_text(separator=' ', strip=True)
+                    match_data = re.search(r'\b(\d{2}/\d{2}/\d{4})\b', texto_anterior)
+                    if match_data:
+                        previsao = match_data.group(1)
+                
+                estoque = formatar_valor(match.group(1))
+                pedidos = formatar_valor(match.group(2))
+                disponivel = formatar_valor(match.group(3))
+                
+                registro = [
+                    artigo,
+                    timestamp,
+                    f"Produto {produto_codigo} - linha encontrada",
+                    previsao,
+                    estoque,
+                    pedidos,
+                    disponivel
+                ]
+                registros.append(registro)
+        
+        return registros
+        
+    except Exception as e:
+        logger.error(f"Erro no parse agressivo: {e}")
+        return []
+
+def formatar_valor(valor_str):
+    """Formata valor para o padrão brasileiro"""
+    try:
         if not valor_str:
             return "0,00"
         
-        # Verificar se já está no formato correto
+        # Remover espaços
+        valor_str = str(valor_str).strip().replace(' ', '')
+        
+        # Verificar se já está formatado
         if re.match(r'^\d{1,3}(?:\.\d{3})*,\d{2}$', valor_str):
             return valor_str
         
-        # Se tem ponto como separador de milhar e vírgula como decimal
-        if '.' in valor_str and ',' in valor_str:
-            partes = valor_str.split(',')
-            inteiro = partes[0].replace('.', '')
-            decimal = partes[1][:2] if len(partes) > 1 else '00'
-            decimal = decimal.ljust(2, '0')
-            return f"{inteiro},{decimal}"
-        
-        # Se só tem vírgula
-        elif ',' in valor_str:
-            partes = valor_str.split(',')
-            inteiro = partes[0]
-            decimal = partes[1][:2] if len(partes) > 1 else '00'
-            decimal = decimal.ljust(2, '0')
-            return f"{inteiro},{decimal}"
-        
-        # Se só tem ponto (provavelmente decimal americano)
-        elif '.' in valor_str and valor_str.count('.') == 1:
-            partes = valor_str.split('.')
-            inteiro = partes[0]
-            decimal = partes[1][:2] if len(partes) > 1 else '00'
-            decimal = decimal.ljust(2, '0')
-            return f"{inteiro},{decimal}"
-        
-        # Número inteiro
-        else:
-            return f"{valor_str},00"
+        # Se tem apenas números
+        if valor_str.replace('.', '').replace(',', '').isdigit():
+            # Adicionar vírgula para centavos se não tiver
+            if ',' not in valor_str:
+                valor_str = valor_str + ',00'
             
+            # Adicionar pontos de milhar
+            partes = valor_str.split(',')
+            inteiro = partes[0]
+            decimal = partes[1] if len(partes) > 1 else '00'
+            
+            # Formatar com pontos de milhar
+            try:
+                inteiro_int = int(inteiro.replace('.', ''))
+                inteiro_formatado = f"{inteiro_int:,}".replace(',', '.')
+            except:
+                inteiro_formatado = inteiro
+            
+            return f"{inteiro_formatado},{decimal[:2].ljust(2, '0')}"
+        
+        return valor_str
+        
     except:
         return "0,00"
 
-def criar_csv_direto(produto_codigo, registros):
-    """Cria CSV diretamente dos registros"""
+# Função para debug - salvar HTML para análise
+def salvar_html_para_debug(html_content, produto_codigo):
+    """Salva HTML para análise de debug"""
     try:
-        if not registros:
-            return None
+        os.makedirs('debug', exist_ok=True)
+        filename = f"debug_produto_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        filepath = os.path.join('debug', filename)
         
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"produto_{produto_codigo}_{timestamp}.csv"
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(html_content)
         
-        import os
-        os.makedirs('csv', exist_ok=True)
-        
-        with open(f'csv/{filename}', 'w', newline='', encoding='utf-8-sig') as f:
-            writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
-                           'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
-            writer.writerows(registros)
-        
-        logger.info(f"CSV criado: {filename}")
+        logger.info(f"HTML salvo para debug: {filename}")
         return filename
-        
-    except Exception as e:
-        logger.error(f"Erro ao criar CSV: {e}")
+    except:
         return None
