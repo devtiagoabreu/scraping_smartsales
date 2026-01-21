@@ -140,6 +140,27 @@ class DGBScraper:
                 'error': str(e)
             }
     
+    
+    def save_html_for_debug(self, html_content, produto_codigo):
+    """Salva HTML para debug"""
+    try:
+        import os
+        os.makedirs('debug', exist_ok=True)
+        from datetime import datetime
+        filename = f"debug_produto_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        filepath = os.path.join('debug', filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        logger.info(f"✅ HTML salvo para debug: {filename}")
+        return filename
+    except Exception as e:
+        logger.error(f"Erro ao salvar HTML debug: {e}")
+        return None
+    
+    
+    
     def create_csv_from_html(self, html_content, produto_codigo):
         """Cria CSV a partir do HTML (método de instância)"""
         try:
