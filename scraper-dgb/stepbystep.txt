@@ -1,0 +1,15 @@
+Instruções de Uso
+Instalação:
+
+bash
+pip install -r requirements.txt
+Configuração:
+
+Edite o arquivo .env com suas credenciais
+
+Edite produtos.txt com sua lista de produtos
+
+Execução:
+
+bash
+python app.py

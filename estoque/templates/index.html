@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DGB COMEX - Sistema de Scraping</title>
+    <title>DGB COMEX - Sistema de Scraping com FullPage Screenshot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
@@ -112,13 +112,80 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
+        .screenshot-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .screenshot-image {
+            max-width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .screenshot-image:hover {
+            transform: scale(1.02);
+        }
+        .modal-xl {
+            max-width: 95%;
+        }
+        .modal-body {
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+        .screenshot-thumb {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .screenshot-thumb:hover {
+            transform: scale(1.1);
+        }
+        .fullpage-badge {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            font-size: 0.8em;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .session-controls {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .session-id {
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .btn-group-xs > .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        .manual-controls {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
-                <i class="bi bi-database"></i> DGB COMEX Scraper
+                <i class="bi bi-database"></i> DGB COMEX Scraper com FullPage Screenshot
             </a>
             <div class="text-light">
                 <i class="bi bi-clock"></i> <span id="current-time"></span>
@@ -192,22 +259,25 @@
                         
                         <div class="d-grid gap-2">
                             <button class="btn btn-success btn-lg" id="start-btn" onclick="startScraping()">
-                                <i class="bi bi-play-fill"></i> Iniciar Scraping
+                                <i class="bi bi-play-fill"></i> Iniciar Scraping Completo
                             </button>
                             <button class="btn btn-danger btn-lg" id="stop-btn" onclick="stopScraping()" disabled>
                                 <i class="bi bi-stop-fill"></i> Parar Scraping
                             </button>
-                            <button class="btn btn-warning btn-lg" onclick="consolidateData()">
-                                <i class="bi bi-file-earmark-spreadsheet"></i> Consolidar Dados
+                            <button class="btn btn-warning btn-lg" onclick="createCSVsFromDebug()">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Criar CSVs do Debug
+                            </button>
+                            <button class="btn btn-info btn-lg" onclick="consolidateData()">
+                                <i class="bi bi-file-earmark-zip"></i> Consolidar Dados
+                            </button>
+                            <button class="btn btn-warning mt-2" onclick="debugScraping()">
+                                <i class="bi bi-bug"></i> Debug Scraping
                             </button>
                         </div>
                         
                         <div class="mt-3">
                             <button class="btn btn-info w-100" onclick="testLogin()">
                                 <i class="bi bi-shield-check"></i> Testar Login
-                            </button>
-                            <button class="btn btn-secondary w-100 mt-2" onclick="testDebug()">
-                                <i class="bi bi-bug"></i> Teste Debug
                             </button>
                         </div>
                     </div>
@@ -228,6 +298,51 @@
                         <p class="text-white mb-0"><strong>Mensagem:</strong> <span id="status-message">Aguardando início...</span></p>
                     </div>
                 </div>
+
+                <!-- Screenshot Rápido -->
+                <div class="card mt-4">
+                    <div class="card-header bg-danger text-white">
+                        <i class="bi bi-camera-fill"></i> Screenshot Rápido
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control bg-dark text-white" id="quick-screenshot-product" placeholder="Código do produto">
+                            <button class="btn btn-warning" onclick="takeQuickFullpageScreenshot()">
+                                <i class="bi bi-camera"></i> FullPage
+                            </button>
+                        </div>
+                        <small class="text-muted">Tira screenshot fullpage de um produto específico (NAVEGADOR PERMANECE ABERTO)</small>
+                    </div>
+                </div>
+
+                <!-- Controles do Navegador -->
+                <div class="card mt-4 manual-controls">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-tools"></i> Controle Manual do Navegador
+                    </div>
+                    <div class="card-body">
+                        <p class="text-white"><small>Use estes controles para gerenciar manualmente o navegador</small></p>
+                        <div class="btn-group w-100 mb-2">
+                            <button class="btn btn-outline-light" onclick="openLoginPage()">
+                                <i class="bi bi-door-open"></i> Abrir Login
+                            </button>
+                            <button class="btn btn-outline-light" onclick="checkBrowserStatus()">
+                                <i class="bi bi-info-circle"></i> Status
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="closeBrowserSession()">
+                                <i class="bi bi-x-circle"></i> Fechar
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-light">Sessão atual:</small><br>
+                            <span id="current-session-id" class="session-id">Nenhuma sessão ativa</span>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-light">Status do navegador:</small><br>
+                            <span id="browser-status" class="badge bg-secondary">Desconhecido</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-md-8">
@@ -243,6 +358,11 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files">
                                     <i class="bi bi-folder"></i> Arquivos
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="screenshots-tab" data-bs-toggle="tab" data-bs-target="#screenshots">
+                                    <i class="bi bi-camera"></i> Screenshots
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -276,7 +396,7 @@
                                         <a class="nav-link active" data-bs-toggle="tab" href="#csv-files">CSV</a>
                                     </li>
                                     <li class="nav-item">
-                                        <a class="nav-link" data-bs-toggle="tab" href="#pdf-files">PDF</a>
+                                        <a class="nav-link" data-bs-toggle="tab" href="#debug-files">Debug</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link" data-bs-toggle="tab" href="#consolidated-files">Consolidados</a>
@@ -289,9 +409,9 @@
                                             <!-- Lista de CSVs será carregada aqui -->
                                         </div>
                                     </div>
-                                    <div class="tab-pane fade" id="pdf-files">
-                                        <div class="file-list" id="pdf-list">
-                                            <!-- Lista de PDFs será carregada aqui -->
+                                    <div class="tab-pane fade" id="debug-files">
+                                        <div class="file-list" id="debug-list">
+                                            <!-- Lista de arquivos de debug será carregada aqui -->
                                         </div>
                                     </div>
                                     <div class="tab-pane fade" id="consolidated-files">
@@ -302,22 +422,41 @@
                                 </div>
                             </div>
                             
+                            <!-- Tab Screenshots -->
+                            <div class="tab-pane fade" id="screenshots" role="tabpanel">
+                                <div class="d-flex justify-content-between mb-3">
+                                    <h5 class="text-white">Screenshots FullPage</h5>
+                                    <button class="btn btn-sm btn-outline-light" onclick="loadScreenshotList()">
+                                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                                    </button>
+                                </div>
+                                <div id="screenshot-list" class="row">
+                                    <!-- Screenshots serão carregados aqui -->
+                                </div>
+                                <div id="screenshot-loader" class="text-center d-none">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando...</span>
+                                    </div>
+                                    <p class="mt-2 text-white">Carregando screenshots...</p>
+                                </div>
+                                <div id="no-screenshots" class="text-center text-muted d-none">
+                                    <i class="bi bi-camera" style="font-size: 3rem;"></i>
+                                    <p class="mt-2">Nenhum screenshot encontrado</p>
+                                </div>
+                            </div>
+                            
                             <!-- Tab Resultados -->
                             <div class="tab-pane fade" id="results" role="tabpanel">
                                 <div id="results-container">
-                                    <!-- Resultados da consolidação serão exibidos aqui -->
                                     <div class="alert alert-info">
-                                        <h5><i class="bi bi-info-circle"></i> Informações</h5>
-                                        <p>Clique em <strong>"Consolidar Dados"</strong> para processar os arquivos CSV e gerar relatórios estruturados.</p>
-                                        <p>O sistema irá criar uma planilha com múltiplas abas, incluindo:</p>
-                                        <ul>
-                                            <li>Todos os dados estruturados</li>
-                                            <li>Resumo por produto</li>
-                                            <li>Resumo por cor</li>
-                                            <li>Pronta entrega</li>
-                                            <li>Datas futuras</li>
-                                            <li>Tabela pivot para análise</li>
-                                        </ul>
+                                        <h5><i class="bi bi-info-circle"></i> Fluxo de Trabalho com FullPage Screenshot</h5>
+                                        <ol>
+                                            <li><strong>Passo 1:</strong> Clique em <button class="btn btn-sm btn-success"><i class="bi bi-play-fill"></i> Iniciar Scraping Completo</button> para coletar dados, gerar debug e screenshots fullpage</li>
+                                            <li><strong>Passo 2:</strong> Visualize os screenshots na aba <button class="btn btn-sm btn-secondary"><i class="bi bi-camera"></i> Screenshots</button></li>
+                                            <li><strong>Passo 3:</strong> Clique em <button class="btn btn-sm btn-warning"><i class="bi bi-file-earmark-spreadsheet"></i> Criar CSVs do Debug</button> para converter os arquivos de debug em CSV</li>
+                                            <li><strong>Passo 4:</strong> Clique em <button class="btn btn-sm btn-info"><i class="bi bi-file-earmark-zip"></i> Consolidar Dados</button> para gerar relatórios consolidados</li>
+                                        </ol>
+                                        <p class="mb-0"><small>Os screenshots fullpage são salvos em <code>data/screenshots/fullpage/</code></small></p>
                                     </div>
                                 </div>
                                 <table class="table table-dark table-hover" id="results-table">
@@ -325,8 +464,8 @@
                                         <tr>
                                             <th>Produto</th>
                                             <th>Status</th>
-                                            <th>Registros</th>
-                                            <th>Arquivo</th>
+                                            <th>Arquivos</th>
+                                            <th>Screenshots</th>
                                             <th>Data</th>
                                         </tr>
                                     </thead>
@@ -339,14 +478,16 @@
                             <!-- Tab Configurações -->
                             <div class="tab-pane fade" id="config" role="tabpanel">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-12">
                                         <div class="card bg-dark">
                                             <div class="card-body">
                                                 <h5 class="card-title text-white">Configurações do Sistema</h5>
+                                                <div class="alert alert-warning">
+                                                    <i class="bi bi-exclamation-triangle"></i> As configurações são carregadas do arquivo <code>.env</code>. Para alterar, edite o arquivo manualmente.
+                                                </div>
                                                 <div class="mb-3">
                                                     <label class="form-label text-white">Usuário DGB</label>
                                                     <input type="text" class="form-control bg-dark text-white" id="config-user" value="tiago" readonly>
-                                                    <small class="form-text text-muted">Configurado no arquivo .env</small>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label text-white">URL Login</label>
@@ -356,33 +497,12 @@
                                                     <label class="form-label text-white">URL Estoque</label>
                                                     <input type="text" class="form-control bg-dark text-white" id="config-estoque-url" value="http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf" readonly>
                                                 </div>
-                                                <button class="btn btn-outline-info w-100" onclick="reloadConfig()">
-                                                    <i class="bi bi-arrow-clockwise"></i> Recarregar Configurações
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="card bg-dark">
-                                            <div class="card-body">
-                                                <h5 class="card-title text-white">Configurações de Scraping</h5>
                                                 <div class="mb-3">
-                                                    <label class="form-label text-white">Delay entre requisições (segundos)</label>
-                                                    <input type="number" class="form-control bg-dark text-white" id="config-delay" value="2" min="1" max="10">
+                                                    <label class="form-label text-white">Status do Sistema</label>
+                                                    <div class="alert alert-success">
+                                                        <i class="bi bi-check-circle"></i> Sistema operacional. Credenciais carregadas do arquivo <code>.env</code>
+                                                    </div>
                                                 </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label text-white">Timeout (segundos)</label>
-                                                    <input type="number" class="form-control bg-dark text-white" id="config-timeout" value="30" min="10" max="120">
-                                                </div>
-                                                <div class="form-check mb-3">
-                                                    <input class="form-check-input" type="checkbox" id="config-headless" checked>
-                                                    <label class="form-check-label text-white" for="config-headless">
-                                                        Modo Headless
-                                                    </label>
-                                                </div>
-                                                <button class="btn btn-outline-warning w-100" onclick="saveScrapingConfig()">
-                                                    <i class="bi bi-gear"></i> Salvar Configurações
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -401,13 +521,13 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <p class="text-white"><strong>Última Execução:</strong> <span id="last-execution">Nenhuma</span></p>
-                                <p class="text-white"><strong>Arquivo Consolidado:</strong> <span id="last-consolidated">Nenhum</span></p>
-                                <p class="text-white"><strong>Total de Arquivos CSV:</strong> <span id="total-csv-files">0</span></p>
+                                <p class="text-white"><strong>Arquivos Debug:</strong> <span id="total-debug-files">0</span></p>
+                                <p class="text-white"><strong>Arquivos CSV:</strong> <span id="total-csv-files">0</span></p>
                             </div>
                             <div class="col-md-6">
                                 <p class="text-white"><strong>Status do Sistema:</strong> <span class="badge bg-success" id="system-status">Operacional</span></p>
                                 <p class="text-white"><strong>Usuário Configurado:</strong> <span id="config-usuario">tiago</span></p>
-                                <p class="text-white"><strong>Última Atualização:</strong> <span id="last-update">-</span></p>
+                                <p class="text-white"><strong>Screenshots FullPage:</strong> <span id="total-screenshots">0</span></p>
                             </div>
                         </div>
                     </div>
@@ -416,9 +536,69 @@
         </div>
     </div>
 
+    <!-- Modal para visualização de screenshot -->
+    <div class="modal fade" id="screenshotModal" tabindex="-1" aria-labelledby="screenshotModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title text-white" id="screenshotModalLabel">Screenshot FullPage</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status" id="modal-spinner">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <img id="modal-screenshot-image" class="img-fluid d-none" style="max-width: 100%;">
+                </div>
+                <div class="modal-footer">
+                    <a id="modal-download-link" class="btn btn-outline-light" download>
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para informações da sessão -->
+    <div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title text-white" id="sessionModalLabel">Informações da Sessão</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-white">Sessão Atual</label>
+                        <input type="text" class="form-control bg-dark text-white" id="modal-session-id" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Status</label>
+                        <div id="modal-session-status" class="badge bg-secondary">Desconhecido</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">URL Atual</label>
+                        <input type="text" class="form-control bg-dark text-white" id="modal-current-url" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Título da Página</label>
+                        <input type="text" class="form-control bg-dark text-white" id="modal-page-title" readonly>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-info" onclick="refreshSessionInfo()">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="footer mt-5 py-3 bg-dark text-center">
         <div class="container">
-            <span class="text-muted">Sistema de Web Scraping DGB COMEX &copy; 2024 - <span id="footer-time"></span></span>
+            <span class="text-muted">Sistema de Web Scraping DGB COMEX com FullPage Screenshot &copy; 2024 - <span id="footer-time"></span></span>
         </div>
     </footer>
 
@@ -429,6 +609,10 @@
     <script>
         let statusPolling = null;
         let logs = [];
+        let screenshotModal = null;
+        let sessionModal = null;
+        let currentSessionId = null;
+        let browserStatus = 'disconnected';
         
         function updateTime() {
             const now = new Date();
@@ -545,7 +729,7 @@
                     if (data.success) {
                         document.getElementById('start-btn').disabled = true;
                         document.getElementById('stop-btn').disabled = false;
-                        addLog('Scraping iniciado', 'success');
+                        addLog('Scraping completo iniciado (gera debug + fullpage screenshot)...', 'success');
                         startStatusPolling();
                     } else {
                         addLog('Erro ao iniciar scraping: ' + data.error, 'error');
@@ -575,6 +759,113 @@
             });
         }
         
+        function takeQuickFullpageScreenshot() {
+            const produto = document.getElementById('quick-screenshot-product').value.trim();
+            
+            if (!produto) {
+                alert('Digite um código de produto');
+                return;
+            }
+            
+            addLog(`Tirando screenshot fullpage do produto ${produto}...`, 'info');
+            
+            fetch(`/api/fullpage-screenshot/${produto}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog(`✅ Screenshot fullpage criado: ${data.filename}`, 'success');
+                    addLog(`📝 Navegador mantido aberto. Sessão: ${data.session_id}`, 'info');
+                    
+                    // Armazenar session_id
+                    currentSessionId = data.session_id;
+                    updateSessionDisplay();
+                    
+                    // Mostrar preview
+                    previewScreenshot(data.filename, data.preview_url);
+                    
+                    // Atualizar lista de screenshots
+                    setTimeout(() => {
+                        loadScreenshotList();
+                    }, 1000);
+                    
+                } else {
+                    addLog(`❌ Erro ao criar screenshot: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao criar screenshot: ' + error, 'error');
+            });
+        }
+        
+        function createCSVsFromDebug() {
+            addLog('Criando CSVs a partir dos arquivos de debug...', 'info');
+            
+            fetch('/api/create-all-csvs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ CSVs criados com sucesso!', 'success');
+                    
+                    // Mostrar resultados
+                    const resultados = data.resultados || [];
+                    let html = '<div class="alert alert-success"><h5><i class="bi bi-file-earmark-spreadsheet"></i> Resultado da Geração de CSVs</h5>';
+                    html += '<table class="table table-sm">';
+                    html += '<thead><tr><th>Produto</th><th>Status</th><th>Arquivo</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    resultados.forEach(r => {
+                        const status = r.success ? 
+                            '<span class="badge bg-success">Sucesso</span>' : 
+                            '<span class="badge bg-danger">Falha</span>';
+                        
+                        const arquivo = r.filename ? 
+                            `<a href="/download/csv/${r.filename}" class="btn btn-sm btn-outline-info"><i class="bi bi-download"></i> ${r.filename}</a>` :
+                            r.error || '-';
+                        
+                        html += `<tr><td>${r.produto}</td><td>${status}</td><td>${arquivo}</td></tr>`;
+                    });
+                    
+                    html += '</tbody></table>';
+                    html += `<p><strong>Resumo:</strong> ${data.message}</p>`;
+                    html += '</div>';
+                    
+                    document.getElementById('results-container').innerHTML = html;
+                    
+                    // Atualizar lista de arquivos
+                    loadFileLists();
+                    
+                } else {
+                    addLog('❌ Erro ao criar CSVs: ' + data.error, 'error');
+                    document.getElementById('results-container').innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle"></i> Erro ao criar CSVs</h5>
+                            <p>${data.error || 'Erro desconhecido'}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao criar CSVs: ' + error, 'error');
+                document.getElementById('results-container').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-triangle"></i> Erro de Conexão</h5>
+                        <p>Não foi possível conectar ao servidor para criar CSVs.</p>
+                        <p><small>Erro: ${error}</small></p>
+                    </div>
+                `;
+            });
+        }
+        
         function consolidateData() {
             addLog('Iniciando consolidação avançada...', 'info');
             
@@ -599,214 +890,25 @@
             .then(data => {
                 if (data.success) {
                     addLog('✅ Consolidação concluída com sucesso!', 'success');
-                    
-                    // Mostrar estatísticas completas
-                    const stats = data.estatisticas;
-                    const totalEstoque = parseFloat(stats.total_estoque || stats.total_quantidade || 0);
-                    const totalPedidos = parseFloat(stats.total_pedidos || 0);
-                    const totalDisponivel = parseFloat(stats.total_disponivel || 0);
-                    const saldo = totalEstoque - totalPedidos;
-                    
-                    const statsHtml = `
+                    document.getElementById('results-container').innerHTML = `
                         <div class="alert alert-success">
-                            <h5><i class="bi bi-bar-chart-fill"></i> Estatísticas da Consolidação</h5>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-3">
-                                    <div class="stats-card">
-                                        <h6><i class="bi bi-list-check"></i> Registros</h6>
-                                        <h3>${stats.total_registros.toLocaleString('pt-BR')}</h3>
-                                        <small>Total de linhas processadas</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="stats-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                                        <h6><i class="bi bi-box"></i> Produtos</h6>
-                                        <h3>${stats.produtos_unicos}</h3>
-                                        <small>Produtos únicos</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="stats-card" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);">
-                                        <h6><i class="bi bi-palette"></i> Cores</h6>
-                                        <h3>${stats.cores_unicas || 0}</h3>
-                                        <small>Cores únicas</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="stats-card" style="background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);">
-                                        <h6><i class="bi bi-folder"></i> Arquivos</h6>
-                                        <h3>${stats.arquivos_processados}</h3>
-                                        <small>CSVs processados</small>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-3">
-                                    <div class="card bg-dark text-white">
-                                        <div class="card-body">
-                                            <h6><i class="bi bi-box-seam"></i> Estoque Total</h6>
-                                            <h3 class="${totalEstoque >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
-                                                ${totalEstoque.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                            </h3>
-                                            <small>Quantidade em estoque</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-dark text-white">
-                                        <div class="card-body">
-                                            <h6><i class="bi bi-cart-check"></i> Pedidos Total</h6>
-                                            <h3 class="${totalPedidos >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
-                                                ${totalPedidos.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                            </h3>
-                                            <small>Quantidade em pedidos</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-dark text-white">
-                                        <div class="card-body">
-                                            <h6><i class="bi bi-check-circle"></i> Disponível Total</h6>
-                                            <h3 class="${totalDisponivel >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
-                                                ${totalDisponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                            </h3>
-                                            <small>Quantidade disponível</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="card bg-dark text-white">
-                                        <div class="card-body">
-                                            <h6><i class="bi bi-calculator"></i> Saldo Final</h6>
-                                            <h3 class="${saldo >= 0 ? 'saldo-positivo' : 'saldo-negativo'}">
-                                                ${saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                            </h3>
-                                            <small>Estoque - Pedidos</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <div class="alert alert-info">
-                                        <h6><i class="bi bi-info-circle"></i> Resumo da Consolidação</h6>
-                                        <p><strong>Processamento:</strong> ${stats.total_registros.toLocaleString('pt-BR')} registros de ${stats.arquivos_processados} arquivos</p>
-                                        <p><strong>Produtos únicos:</strong> ${stats.produtos_unicos} diferentes</p>
-                                        <p><strong>Cores únicas:</strong> ${stats.cores_unicas || 0} variações</p>
-                                        <p><strong>Disponibilidade:</strong> ${(totalDisponivel > 0 ? totalDisponivel.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0,00')} unidades disponíveis</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="alert alert-warning">
-                                        <h6><i class="bi bi-lightbulb"></i> Análise Rápida</h6>
-                                        ${saldo >= 0 ? 
-                                            `<p class="text-success"><i class="bi bi-check-circle-fill"></i> <strong>Situação Positiva:</strong> Há estoque suficiente para atender todos os pedidos.</p>` :
-                                            `<p class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> <strong>Atenção:</strong> Estoque insuficiente para atender todos os pedidos.</p>`
-                                        }
-                                        <p><strong>Taxa de ocupação:</strong> ${totalEstoque > 0 ? ((totalPedidos / totalEstoque * 100).toFixed(2)) : '0,00'}% do estoque está comprometido</p>
-                                        <p><strong>Disponibilidade:</strong> ${totalEstoque > 0 ? ((totalDisponivel / totalEstoque * 100).toFixed(2)) : '0,00'}% do estoque está disponível</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <h5><i class="bi bi-check-circle"></i> Consolidação Concluída</h5>
+                            <p>${data.message || 'Processamento concluído'}</p>
+                            <pre class="bg-dark text-light p-3 rounded mt-2" style="max-height: 200px; overflow-y: auto;">
+${data.output || 'Nenhum detalhe disponível'}
+                            </pre>
                         </div>
                     `;
-                    
-                    document.getElementById('results-container').innerHTML = statsHtml;
-                    
-                    // Mostrar links para download
-                    const files = data.arquivos;
-                    let filesHtml = '<div class="mt-4"><h5><i class="bi bi-download"></i> Arquivos Gerados</h5>';
-                    filesHtml += '<div class="row">';
-                    
-                    if (files.excel) {
-                        filesHtml += `
-                            <div class="col-md-6 mb-3">
-                                <div class="card download-btn bg-success text-white">
-                                    <div class="card-body text-center">
-                                        <i class="bi bi-file-earmark-excel display-4"></i>
-                                        <h5 class="mt-2">Excel Completo</h5>
-                                        <p class="small">Múltiplas abas com análise completa</p>
-                                        <a href="/download/consolidated/files/${files.excel}" class="btn btn-light btn-sm">
-                                            <i class="bi bi-download"></i> Baixar Excel
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    if (files.csv) {
-                        filesHtml += `
-                            <div class="col-md-6 mb-3">
-                                <div class="card download-btn bg-info text-white">
-                                    <div class="card-body text-center">
-                                        <i class="bi bi-file-earmark-spreadsheet display-4"></i>
-                                        <h5 class="mt-2">CSV Estruturado</h5>
-                                        <p class="small">Dados tabulados prontos para análise</p>
-                                        <a href="/download/consolidated/files/${files.csv}" class="btn btn-light btn-sm">
-                                            <i class="bi bi-download"></i> Baixar CSV
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    if (files.pivot) {
-                        filesHtml += `
-                            <div class="col-md-6 mb-3">
-                                <div class="card download-btn bg-warning text-white">
-                                    <div class="card-body text-center">
-                                        <i class="bi bi-table display-4"></i>
-                                        <h5 class="mt-2">Tabela Pivot</h5>
-                                        <p class="small">Análise agregada por produto e cor</p>
-                                        <a href="/download/consolidated/files/${files.pivot}" class="btn btn-light btn-sm">
-                                            <i class="bi bi-download"></i> Baixar Pivot
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    filesHtml += `
-                        <div class="col-md-6 mb-3">
-                            <div class="card download-btn bg-secondary text-white">
-                                <div class="card-body text-center">
-                                    <i class="bi bi-file-earmark-text display-4"></i>
-                                    <h5 class="mt-2">Resumo JSON</h5>
-                                    <p class="small">Estatísticas em formato estruturado</p>
-                                    <button class="btn btn-light btn-sm" onclick="viewJsonSummary('${files.json || `resumo_consolidacao_${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}.json`}')">
-                                        <i class="bi bi-eye"></i> Visualizar
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    
-                    filesHtml += '</div></div>';
-                    document.getElementById('results-container').innerHTML += filesHtml;
                     
                     // Atualizar lista de arquivos
                     loadFileLists();
                     
-                    // Atualizar último consolidado
-                    if (files.excel) {
-                        document.getElementById('last-consolidated').textContent = files.excel;
-                    }
-                    
                 } else {
-                    addLog('❌ Erro na consolidação: ' + data.message, 'error');
+                    addLog('❌ Erro na consolidação: ' + data.error, 'error');
                     document.getElementById('results-container').innerHTML = `
                         <div class="alert alert-danger">
                             <h5><i class="bi bi-exclamation-triangle"></i> Erro na Consolidação</h5>
-                            <p>${data.message || 'Erro desconhecido'}</p>
-                            <button class="btn btn-warning btn-sm" onclick="testDebug()">
-                                <i class="bi bi-bug"></i> Testar Debug
-                            </button>
+                            <p>${data.error || 'Erro desconhecido'}</p>
                         </div>
                     `;
                 }
@@ -821,35 +923,6 @@
                     </div>
                 `;
             });
-        }
-        
-        function viewJsonSummary(filename) {
-            addLog('Carregando resumo JSON...', 'info');
-            
-            fetch(`/api/consolidation/summary/${filename}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const jsonData = data.data;
-                        const jsonHtml = `
-                            <div class="alert alert-info mt-3">
-                                <h6><i class="bi bi-file-earmark-text"></i> Resumo JSON</h6>
-                                <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto; font-size: 12px;">
-${JSON.stringify(jsonData, null, 2)}
-                                </pre>
-                                <button class="btn btn-sm btn-secondary" onclick="document.getElementById('results-container').querySelector('.alert-info').remove()">
-                                    <i class="bi bi-x-circle"></i> Fechar
-                                </button>
-                            </div>
-                        `;
-                        document.getElementById('results-container').innerHTML += jsonHtml;
-                    } else {
-                        addLog('Erro ao carregar JSON: ' + data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    addLog('Erro ao carregar resumo JSON: ' + error, 'error');
-                });
         }
         
         function testLogin() {
@@ -872,39 +945,6 @@ ${JSON.stringify(jsonData, null, 2)}
             .catch(error => {
                 addLog('❌ Erro ao testar login: ' + error, 'error');
             });
-        }
-        
-        function testDebug() {
-            addLog('Executando teste de debug...', 'debug');
-            
-            // Testar se há arquivos CSV
-            fetch('/api/files/csv')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.files && data.files.length > 0) {
-                        addLog(`✅ Encontrados ${data.files.length} arquivos CSV`, 'success');
-                        
-                        // Testar o primeiro arquivo
-                        const firstFile = data.files[0].name;
-                        fetch(`/api/debug/csv/${firstFile}`)
-                            .then(response => response.json())
-                            .then(debugData => {
-                                addLog(`📄 Conteúdo do arquivo ${firstFile}:`, 'debug');
-                                if (debugData.preview) {
-                                    const preview = debugData.preview.substring(0, 200);
-                                    addLog(`Preview: ${preview}...`, 'debug');
-                                }
-                            })
-                            .catch(error => {
-                                addLog(`❌ Erro ao ler arquivo ${firstFile}: ${error}`, 'error');
-                            });
-                    } else {
-                        addLog('⚠️ Nenhum arquivo CSV encontrado para teste', 'warning');
-                    }
-                })
-                .catch(error => {
-                    addLog('❌ Erro ao listar arquivos CSV: ' + error, 'error');
-                });
         }
         
         function startStatusPolling() {
@@ -976,6 +1016,7 @@ ${JSON.stringify(jsonData, null, 2)}
                 
                 // Carregar listas de arquivos
                 loadFileLists();
+                loadScreenshotList();
             }
         }
         
@@ -990,16 +1031,35 @@ ${JSON.stringify(jsonData, null, 2)}
                     '<span class="badge bg-success">Sucesso</span>' : 
                     '<span class="badge bg-danger">Erro</span>';
                 
-                let records = result.dados ? result.dados.length : 0;
-                let fileLink = result.arquivo ? 
-                    `<a href="/download/csv/${result.arquivo}" class="btn btn-sm btn-outline-info"><i class="bi bi-download"></i></a>` : 
-                    '-';
+                let arquivos = '';
+                if (result.arquivo_html) {
+                    const htmlFile = result.arquivo_html.split('/').pop();
+                    arquivos += `<a href="/download/debug/${htmlFile}" class="btn btn-sm btn-outline-secondary me-1" title="HTML"><i class="bi bi-file-earmark-code"></i></a>`;
+                }
+                if (result.arquivo_texto) {
+                    const txtFile = result.arquivo_texto.split('/').pop();
+                    arquivos += `<a href="/download/debug/${txtFile}" class="btn btn-sm btn-outline-secondary" title="Texto"><i class="bi bi-file-earmark-text"></i></a>`;
+                }
+                
+                let screenshots = '';
+                if (result.screenshot_fullpage) {
+                    const screenshotFile = result.screenshot_fullpage.split('/').pop();
+                    screenshots += `<button class="btn btn-sm btn-outline-warning me-1" onclick="previewScreenshot('${screenshotFile}')" title="FullPage Screenshot">
+                        <i class="bi bi-camera-fill"></i>
+                    </button>`;
+                }
+                if (result.screenshot_normal) {
+                    const normalFile = result.screenshot_normal.split('/').pop();
+                    screenshots += `<a href="/download/screenshots/${normalFile}" class="btn btn-sm btn-outline-info" title="Screenshot Normal" download>
+                        <i class="bi bi-camera"></i>
+                    </a>`;
+                }
                 
                 row.innerHTML = `
                     <td>${result.codigo}</td>
                     <td>${statusBadge}</td>
-                    <td>${records}</td>
-                    <td>${fileLink}</td>
+                    <td>${arquivos || '-'}</td>
+                    <td>${screenshots || '-'}</td>
                     <td>${new Date(result.timestamp).toLocaleString('pt-BR')}</td>
                 `;
                 
@@ -1025,14 +1085,9 @@ ${JSON.stringify(jsonData, null, 2)}
                                     <span class="ms-2 text-white">${file.name}</span>
                                     <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
                                 </div>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="previewFile('${file.name}', 'csv')">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <a href="${file.path}" class="btn btn-sm btn-outline-light">
-                                        <i class="bi bi-download"></i>
-                                    </a>
-                                </div>
+                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                    <i class="bi bi-download"></i>
+                                </a>
                             `;
                             list.appendChild(item);
                         });
@@ -1042,20 +1097,26 @@ ${JSON.stringify(jsonData, null, 2)}
                     }
                 });
             
-            // Carregar PDFs
-            fetch('/api/files/pdf')
+            // Carregar Debug
+            fetch('/api/files/debug')
                 .then(response => response.json())
                 .then(data => {
-                    const list = document.getElementById('pdf-list');
+                    const list = document.getElementById('debug-list');
                     list.innerHTML = '';
                     
                     if (data.files && data.files.length > 0) {
                         data.files.forEach(file => {
                             const item = document.createElement('div');
                             item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom border-secondary';
+                            
+                            let icon = 'bi-file-earmark';
+                            if (file.name.endsWith('.html')) icon = 'bi-file-earmark-code text-warning';
+                            if (file.name.endsWith('.txt')) icon = 'bi-file-earmark-text text-info';
+                            if (file.name.endsWith('.json')) icon = 'bi-file-earmark-text text-success';
+                            
                             item.innerHTML = `
                                 <div>
-                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                    <i class="bi ${icon}"></i>
                                     <span class="ms-2 text-white">${file.name}</span>
                                     <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
                                 </div>
@@ -1065,84 +1126,286 @@ ${JSON.stringify(jsonData, null, 2)}
                             `;
                             list.appendChild(item);
                         });
+                        document.getElementById('total-debug-files').textContent = data.files.length;
                     } else {
-                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo PDF</p>';
-                    }
-                });
-            
-            // Carregar Consolidados
-            fetch('/api/files/consolidated')
-                .then(response => response.json())
-                .then(data => {
-                    const list = document.getElementById('consolidated-list');
-                    list.innerHTML = '';
-                    
-                    if (data.files && data.files.length > 0) {
-                        data.files.forEach(file => {
-                            const item = document.createElement('div');
-                            item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom border-secondary';
-                            item.innerHTML = `
-                                <div>
-                                    <i class="bi bi-file-earmark-zip text-warning"></i>
-                                    <span class="ms-2 text-white">${file.name}</span>
-                                    <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
-                                </div>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="previewFile('${file.name}', 'consolidated')">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <a href="${file.path}" class="btn btn-sm btn-outline-light">
-                                        <i class="bi bi-download"></i>
-                                    </a>
-                                </div>
-                            `;
-                            list.appendChild(item);
-                        });
-                        
-                        if (data.files.length > 0) {
-                            document.getElementById('last-consolidated').textContent = data.files[0].name;
-                        }
-                    } else {
-                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo consolidado</p>';
+                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo de debug</p>';
                     }
                 });
         }
         
-        function previewFile(filename, type) {
-            addLog(`Visualizando preview de ${filename}...`, 'debug');
+        function loadScreenshotList() {
+            const loader = document.getElementById('screenshot-loader');
+            const noScreenshots = document.getElementById('no-screenshots');
+            const list = document.getElementById('screenshot-list');
             
-            let endpoint = '';
-            if (type === 'csv') {
-                endpoint = `/api/debug/csv/${filename}`;
-            } else if (type === 'consolidated') {
-                // Para arquivos consolidados, você pode adicionar um endpoint similar
-                addLog(`Visualização para arquivos consolidados ainda não implementada`, 'warning');
+            loader.classList.remove('d-none');
+            list.classList.add('d-none');
+            noScreenshots.classList.add('d-none');
+            
+            fetch('/api/files/screenshots')
+                .then(response => response.json())
+                .then(data => {
+                    loader.classList.add('d-none');
+                    list.classList.remove('d-none');
+                    list.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        const fullpageScreenshots = data.files.filter(f => f.type === 'fullpage');
+                        document.getElementById('total-screenshots').textContent = fullpageScreenshots.length;
+                        
+                        if (fullpageScreenshots.length > 0) {
+                            fullpageScreenshots.forEach(file => {
+                                const col = document.createElement('div');
+                                col.className = 'col-md-4 mb-3';
+                                
+                                col.innerHTML = `
+                                    <div class="card bg-dark">
+                                        <div class="card-body text-center">
+                                            <div class="position-relative">
+                                                <img src="/api/screenshot/preview/${file.name}" 
+                                                     class="screenshot-thumb mb-2"
+                                                     onclick="previewScreenshot('${file.name}')"
+                                                     alt="${file.name}"
+                                                     onerror="this.src='data:image/svg+xml;charset=UTF-8,<svg width=\"100\" height=\"100\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"100\" height=\"100\" fill=\"%23212529\"/><text x=\"50\" y=\"50\" font-family=\"Arial\" font-size=\"14\" fill=\"%23fff\" text-anchor=\"middle\" dy=\".3em\">Carregando...</text></svg>'">
+                                                <span class="fullpage-badge position-absolute top-0 start-0 m-1">FULLPAGE</span>
+                                            </div>
+                                            <h6 class="text-white mb-1">${file.name}</h6>
+                                            <small class="text-muted">${formatBytes(file.size)}</small>
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-light me-1" onclick="previewScreenshot('${file.name}')">
+                                                    <i class="bi bi-eye"></i> Ver
+                                                </button>
+                                                <a href="${file.path}" class="btn btn-sm btn-outline-info" download>
+                                                    <i class="bi bi-download"></i> Baixar
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                list.appendChild(col);
+                            });
+                        } else {
+                            noScreenshots.classList.remove('d-none');
+                            list.innerHTML = '';
+                        }
+                    } else {
+                        noScreenshots.classList.remove('d-none');
+                    }
+                })
+                .catch(error => {
+                    loader.classList.add('d-none');
+                    list.innerHTML = '<div class="col-12 text-center text-muted"><p>Erro ao carregar screenshots</p></div>';
+                });
+        }
+        
+        function previewScreenshot(filename, previewUrl = null) {
+            if (!previewUrl) {
+                previewUrl = `/api/screenshot/preview/${filename}`;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('screenshotModal'));
+            const modalImage = document.getElementById('modal-screenshot-image');
+            const modalSpinner = document.getElementById('modal-spinner');
+            const modalDownloadLink = document.getElementById('modal-download-link');
+            const modalTitle = document.getElementById('screenshotModalLabel');
+            
+            modalTitle.textContent = `Screenshot: ${filename}`;
+            modalImage.classList.add('d-none');
+            modalSpinner.classList.remove('d-none');
+            modalDownloadLink.href = `/download/screenshots/fullpage/${filename}`;
+            modalDownloadLink.download = filename;
+            
+            // Carregar imagem
+            modalImage.onload = function() {
+                modalSpinner.classList.add('d-none');
+                modalImage.classList.remove('d-none');
+            };
+            
+            modalImage.onerror = function() {
+                modalSpinner.classList.add('d-none');
+                modalImage.alt = 'Erro ao carregar imagem';
+                modalImage.src = 'data:image/svg+xml;charset=UTF-8,<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="600" fill="%23212529"/><text x="400" y="300" font-family="Arial" font-size="20" fill="%23fff" text-anchor="middle" dy=".3em">Erro ao carregar screenshot</text></svg>';
+                modalImage.classList.remove('d-none');
+            };
+            
+            modalImage.src = previewUrl;
+            modal.show();
+        }
+        
+        function openLoginPage() {
+            addLog('Abrindo página de login no navegador...', 'info');
+            
+            fetch('/api/manual-browser-control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: 'open' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Navegador aberto na página de login', 'success');
+                    currentSessionId = data.session_id;
+                    updateSessionDisplay();
+                    checkBrowserStatus();
+                } else {
+                    addLog(`❌ Erro ao abrir navegador: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao abrir navegador: ' + error, 'error');
+            });
+        }
+        
+        function checkBrowserStatus() {
+            if (!currentSessionId) {
+                updateBrowserStatus('disconnected', 'Nenhuma sessão ativa');
                 return;
             }
             
-            if (endpoint) {
-                fetch(endpoint)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.preview) {
-                            const previewHtml = `
-                                <div class="alert alert-info mt-3">
-                                    <h6><i class="bi bi-eye"></i> Preview: ${filename}</h6>
-                                    <pre class="bg-dark text-light p-3 rounded" style="max-height: 300px; overflow-y: auto; font-size: 11px;">
-${data.preview.substring(0, 500)}${data.preview.length > 500 ? '...' : ''}
-                                    </pre>
-                                    <button class="btn btn-sm btn-secondary" onclick="this.parentElement.remove()">
-                                        <i class="bi bi-x-circle"></i> Fechar
-                                    </button>
-                                </div>
-                            `;
-                            document.getElementById('results-container').innerHTML += previewHtml;
-                        }
+            fetch(`/api/keep-alive/${currentSessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateBrowserStatus('connected', 'Conectado');
+                    
+                    // Obter informações detalhadas
+                    fetch('/api/manual-browser-control', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ action: 'status' })
                     })
-                    .catch(error => {
-                        addLog(`Erro ao visualizar arquivo: ${error}`, 'error');
+                    .then(response => response.json())
+                    .then(statusData => {
+                        if (statusData.success) {
+                            updateBrowserStatus('active', `Ativo - ${statusData.title || 'Sem título'}`);
+                        }
                     });
+                    
+                } else {
+                    updateBrowserStatus('disconnected', 'Sessão expirada');
+                    currentSessionId = null;
+                    updateSessionDisplay();
+                }
+            })
+            .catch(error => {
+                updateBrowserStatus('error', 'Erro de conexão');
+            });
+        }
+        
+        function closeBrowserSession() {
+            if (!currentSessionId) {
+                addLog('Nenhuma sessão ativa para fechar', 'warning');
+                return;
             }
+            
+            addLog('Fechando navegador...', 'info');
+            
+            fetch(`/api/close-session/${currentSessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Navegador fechado com sucesso', 'success');
+                    currentSessionId = null;
+                    updateSessionDisplay();
+                    updateBrowserStatus('disconnected', 'Desconectado');
+                } else {
+                    addLog(`❌ Erro ao fechar navegador: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao fechar navegador: ' + error, 'error');
+            });
+        }
+        
+        function updateSessionDisplay() {
+            const sessionIdElement = document.getElementById('current-session-id');
+            if (currentSessionId) {
+                sessionIdElement.textContent = currentSessionId.substring(0, 20) + '...';
+                sessionIdElement.title = currentSessionId;
+                sessionIdElement.classList.remove('text-muted');
+                sessionIdElement.classList.add('text-light');
+            } else {
+                sessionIdElement.textContent = 'Nenhuma sessão ativa';
+                sessionIdElement.title = '';
+                sessionIdElement.classList.remove('text-light');
+                sessionIdElement.classList.add('text-muted');
+            }
+        }
+        
+        function updateBrowserStatus(status, message) {
+            const statusElement = document.getElementById('browser-status');
+            let badgeClass = 'bg-secondary';
+            
+            switch(status) {
+                case 'connected':
+                case 'active':
+                    badgeClass = 'bg-success';
+                    break;
+                case 'disconnected':
+                    badgeClass = 'bg-danger';
+                    break;
+                case 'error':
+                    badgeClass = 'bg-warning';
+                    break;
+            }
+            
+            statusElement.className = `badge ${badgeClass}`;
+            statusElement.textContent = message;
+            browserStatus = status;
+        }
+        
+        function showSessionInfo() {
+            if (!currentSessionId) {
+                alert('Nenhuma sessão ativa');
+                return;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('sessionModal'));
+            document.getElementById('modal-session-id').value = currentSessionId;
+            
+            // Obter informações atualizadas
+            fetch('/api/manual-browser-control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: 'status' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('modal-session-status').className = 'badge bg-success';
+                    document.getElementById('modal-session-status').textContent = 'Ativo';
+                    document.getElementById('modal-current-url').value = data.url || 'N/A';
+                    document.getElementById('modal-page-title').value = data.title || 'N/A';
+                } else {
+                    document.getElementById('modal-session-status').className = 'badge bg-danger';
+                    document.getElementById('modal-session-status').textContent = 'Inativo';
+                    document.getElementById('modal-current-url').value = 'N/A';
+                    document.getElementById('modal-page-title').value = 'N/A';
+                }
+            });
+            
+            modal.show();
+        }
+        
+        function refreshSessionInfo() {
+            showSessionInfo();
         }
         
         function formatBytes(bytes) {
@@ -1152,38 +1415,28 @@ ${data.preview.substring(0, 500)}${data.preview.length > 500 ? '...' : ''}
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
-        
-        function reloadConfig() {
-            fetch('/api/config')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('config-user').value = data.usuario;
-                    document.getElementById('config-login-url').value = data.url_login;
-                    document.getElementById('config-estoque-url').value = data.url_estoque;
-                    document.getElementById('config-usuario').textContent = data.usuario;
-                    addLog('Configurações recarregadas do .env', 'success');
-                })
-                .catch(error => {
-                    addLog('Erro ao recarregar configurações: ' + error, 'error');
-                });
-        }
-        
-        function saveScrapingConfig() {
-            const delay = document.getElementById('config-delay').value;
-            const timeout = document.getElementById('config-timeout').value;
-            const headless = document.getElementById('config-headless').checked;
+
+        function debugScraping() {
+            addLog('🔍 Iniciando scraping em modo debug...', 'info');
             
-            addLog(`Configurações de scraping salvas: Delay=${delay}s, Timeout=${timeout}s, Headless=${headless}`, 'info');
-            
-            // Aqui você pode implementar o salvamento real das configurações
-            // Por enquanto, apenas mostra uma mensagem
-            document.getElementById('system-status').className = 'badge bg-warning';
-            document.getElementById('system-status').textContent = 'Configurando...';
-            
-            setTimeout(() => {
-                document.getElementById('system-status').className = 'badge bg-success';
-                document.getElementById('system-status').textContent = 'Operacional';
-            }, 2000);
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Scraping iniciado em modo debug', 'success');
+                    addLog('📋 Verifique os logs no terminal para ver o progresso detalhado', 'info');
+                } else {
+                    addLog('❌ Erro ao iniciar scraping: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro de conexão: ' + error, 'error');
+            });
         }
         
         // Inicialização
@@ -1193,23 +1446,39 @@ ${data.preview.substring(0, 500)}${data.preview.length > 500 ? '...' : ''}
             
             loadProducts();
             loadFileLists();
-            reloadConfig();
+            loadScreenshotList();
+            
+            // Configurar valores fixos
+            document.getElementById('config-user').value = 'tiago';
+            document.getElementById('config-login-url').value = 'http://sistemadgb.4pu.com:90/dgb/login.jsf';
+            document.getElementById('config-estoque-url').value = 'http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf';
+            document.getElementById('config-usuario').textContent = 'tiago';
+            
+            // Inicializar modais
+            screenshotModal = new bootstrap.Modal(document.getElementById('screenshotModal'));
+            sessionModal = new bootstrap.Modal(document.getElementById('sessionModal'));
             
             // Iniciar polling de status
             startStatusPolling();
             
             addLog('Sistema inicializado com sucesso', 'success');
-            addLog('Credenciais carregadas do arquivo .env', 'info');
-            addLog('Pronto para iniciar scraping e consolidação', 'success');
+            addLog('Funcionalidade FullPage Screenshot ativada', 'info');
+            addLog('Navegador mantido aberto entre requisições', 'info');
+            addLog('Pronto para iniciar scraping com captura completa de tela', 'success');
             
-            // Verificar se há arquivos CSV existentes
-            fetch('/api/files/csv')
+            // Verificar se há arquivos existentes
+            fetch('/api/files/screenshots')
                 .then(response => response.json())
                 .then(data => {
                     if (data.files && data.files.length > 0) {
-                        addLog(`Encontrados ${data.files.length} arquivos CSV para consolidação`, 'info');
+                        const fullpageCount = data.files.filter(f => f.type === 'fullpage').length;
+                        addLog(`Encontrados ${fullpageCount} screenshots fullpage`, 'info');
                     }
                 });
+            
+            // Atualizar display da sessão
+            updateSessionDisplay();
+            updateBrowserStatus('disconnected', 'Desconectado');
         });
     </script>
 </body>

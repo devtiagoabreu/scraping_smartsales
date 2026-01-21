@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraper DGB - Sistema Simplificado</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .card { margin-bottom: 20px; }
+        .progress { height: 25px; }
+        .log-container { 
+            height: 300px; 
+            overflow-y: auto; 
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container">
+            <span class="navbar-brand">Scraper DGB - Sistema Simplificado</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Controles</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Lista de Produtos</label>
+                            <textarea class="form-control" id="products-list" rows="5"></textarea>
+                            <small class="text-muted">Códigos separados por vírgula</small>
+                        </div>
+                        
+                        <button class="btn btn-outline-primary w-100 mb-2" onclick="loadProducts()">
+                            Carregar Produtos
+                        </button>
+                        <button class="btn btn-outline-success w-100 mb-3" onclick="saveProducts()">
+                            Salvar Produtos
+                        </button>
+                        
+                        <button class="btn btn-success w-100 mb-2" id="start-btn" onclick="startScraping()">
+                            Iniciar Scraping
+                        </button>
+                        <button class="btn btn-danger w-100 mb-2" id="stop-btn" onclick="stopScraping()" disabled>
+                            Parar Scraping
+                        </button>
+                        <button class="btn btn-warning w-100 mb-2" onclick="createCSVs()">
+                            Criar CSVs
+                        </button>
+                        <button class="btn btn-info w-100 mb-2" onclick="consolidate()">
+                            Consolidar Dados
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Progresso</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-3">
+                            <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+                        </div>
+                        <p><strong>Status:</strong> <span id="status-text">Pronto</span></p>
+                        <p><strong>Produto Atual:</strong> <span id="current-product">-</span></p>
+                        <p><strong>Mensagem:</strong> <span id="status-message">Aguardando início</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Logs do Sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-container" id="log-content">
+                            <!-- Logs serão inseridos aqui -->
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="clearLogs()">
+                            Limpar Logs
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Arquivos CSV</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="files-list">
+                            <!-- Lista de arquivos será inserida aqui -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let logs = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.unshift(`[${timestamp}] ${message}`);
+            
+            if (logs.length > 50) logs.pop();
+            
+            updateLogs();
+        }
+        
+        function updateLogs() {
+            const container = document.getElementById('log-content');
+            container.innerHTML = logs.map(log => `<div>${log}</div>`).join('');
+        }
+        
+        function clearLogs() {
+            logs = [];
+            updateLogs();
+        }
+        
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                const data = await response.json();
+                document.getElementById('products-list').value = data.produtos;
+                addLog('Produtos carregados', 'success');
+            } catch (error) {
+                addLog('Erro ao carregar produtos', 'error');
+            }
+        }
+        
+        async function saveProducts() {
+            const produtos = document.getElementById('products-list').value;
+            
+            try {
+                const response = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ produtos })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Produtos salvos', 'success');
+                } else {
+                    addLog('Erro: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLog('Erro ao salvar produtos', 'error');
+            }
+        }
+        
+        async function startScraping() {
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+            
+            addLog('Iniciando scraping...', 'info');
+            
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Scraping iniciado com sucesso', 'success');
+                    startStatusPolling();
+                } else {
+                    addLog('Erro: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLog('Erro ao iniciar scraping', 'error');
+            }
+        }
+        
+        async function stopScraping() {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Scraping parado', 'warning');
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('stop-btn').disabled = true;
+                }
+            } catch (error) {
+                addLog('Erro ao parar scraping', 'error');
+            }
+        }
+        
+        async function createCSVs() {
+            addLog('Criando CSVs...', 'info');
+            
+            try {
+                // Esta função precisará ser implementada
+                // Ela irá processar os resultados do scraping e criar CSVs
+                addLog('Funcionalidade em desenvolvimento', 'info');
+            } catch (error) {
+                addLog('Erro ao criar CSVs: ' + error, 'error');
+            }
+        }
+        
+        async function consolidate() {
+            addLog('Iniciando consolidação...', 'info');
+            
+            try {
+                const response = await fetch('/api/consolidate', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Consolidação concluída: ' + data.message, 'success');
+                    loadFiles();
+                } else {
+                    addLog('Erro na consolidação: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLog('Erro na consolidação: ' + error, 'error');
+            }
+        }
+        
+        function startStatusPolling() {
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/status');
+                    const status = await response.json();
+                    
+                    updateStatus(status);
+                    
+                    if (!status.running) {
+                        clearInterval(interval);
+                        document.getElementById('start-btn').disabled = false;
+                        document.getElementById('stop-btn').disabled = true;
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar status:', error);
+                }
+            }, 1000);
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('progress-bar').style.width = status.progress + '%';
+            document.getElementById('progress-bar').textContent = status.progress + '%';
+            document.getElementById('status-text').textContent = status.running ? 'Executando' : 'Parado';
+            document.getElementById('current-product').textContent = status.current || '-';
+            document.getElementById('status-message').textContent = status.message;
+            
+            // Adicionar logs dos resultados
+            if (status.results && status.results.length > 0) {
+                const lastResult = status.results[status.results.length - 1];
+                if (lastResult.timestamp) {
+                    const time = new Date(lastResult.timestamp).toLocaleTimeString();
+                    const msg = lastResult.success ? 
+                        `✅ ${lastResult.codigo} processado` : 
+                        `❌ ${lastResult.codigo} erro: ${lastResult.error}`;
+                    
+                    if (!logs.some(log => log.includes(lastResult.codigo))) {
+                        addLog(msg, lastResult.success ? 'success' : 'error');
+                    }
+                }
+            }
+        }
+        
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+                
+                let html = '<div class="list-group">';
+                
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(file => {
+                        html += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>${file.name}</span>
+                                <a href="${file.url}" class="btn btn-sm btn-primary">Baixar</a>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<div class="list-group-item text-muted">Nenhum arquivo CSV</div>';
+                }
+                
+                html += '</div>';
+                document.getElementById('files-list').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Erro ao carregar arquivos:', error);
+            }
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts();
+            loadFiles();
+            addLog('Sistema inicializado', 'success');
+        });
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-# app.py - VERSÃO COM PARÂMETROS PRODUTO E SITUAÇÃO CORRIGIDA
+# app.py
 import os
 import csv
 import json
@@ -28,11 +28,7 @@ from io import BytesIO, StringIO
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import sys
-
-# Configurar stdout para UTF-8
-sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
-
-sys.path.append('.')
+sys.path.append('.')  # Para importar o consolidator
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -57,7 +53,7 @@ os.makedirs(CONSOLIDATED_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dgb-comex-scraper-secret-2024')
 
-# Configurações do sistema DGB
+# Configurações do sistema DGB (agora do .env)
 DGB_USUARIO = os.getenv('DGB_USUARIO', 'tiago')
 DGB_SENHA = os.getenv('DGB_SENHA', 'Esmeralda852456#&')
 DGB_URL_LOGIN = os.getenv('DGB_URL_LOGIN', 'http://sistemadgb.4pu.com:90/dgb/login.jsf')
@@ -68,14 +64,14 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(os.path.join(LOG_FOLDER, 'scraper.log'), encoding='utf-8'),
+        logging.FileHandler(os.path.join(LOG_FOLDER, 'scraper.log')),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
 class DGBScraper:
-    def __init__(self, headless=False):
+    def __init__(self, headless=False):  # False para debugging
         self.headless = headless
         self.driver = None
         self.wait = None
@@ -99,6 +95,8 @@ class DGBScraper:
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        chrome_options.add_argument('--disable-web-security')
+        chrome_options.add_argument('--allow-running-insecure-content')
         
         self.driver = webdriver.Chrome(options=chrome_options)
         self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
@@ -118,78 +116,252 @@ class DGBScraper:
             return None
     
     def login(self):
-        """Efetua login no sistema DGB"""
+        """Efetua login no sistema DGB usando credenciais do .env"""
         try:
             logger.info(f"Acessando página de login: {self.url_login}")
+            logger.info(f"Usando usuário: {self.usuario}")
             
             self.driver.get(self.url_login)
             time.sleep(3)
             
             self.take_screenshot("login_page")
             
-            # Localizar e preencher campos de login
+            # Aguardar carregamento completo da página
+            self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+            
+            # Localizar campos de login
             try:
+                # Tentar pelo ID primeiro
                 login_field = self.driver.find_element(By.ID, "login")
             except NoSuchElementException:
+                # Tentar pelo name
                 login_field = self.driver.find_element(By.NAME, "login")
             
+            # Preencher usuário
             login_field.clear()
             login_field.send_keys(self.usuario)
             
+            # Localizar campo de senha
             try:
                 senha_field = self.driver.find_element(By.ID, "senha")
             except NoSuchElementException:
+                # Tentar pelo name com valor do campo
                 senha_field = self.driver.find_element(By.CSS_SELECTOR, "input[type='password']")
             
+            # Preencher senha
             senha_field.clear()
             senha_field.send_keys(self.senha)
             
+            self.take_screenshot("credenciais_preenchidas")
+            
             # Clicar no botão de login
             try:
+                # Procurar botão por texto ou classe
                 login_button = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
             except NoSuchElementException:
+                # Tentar pelo ID
                 login_button = self.driver.find_element(By.ID, "botaoEntrar")
             
             login_button.click()
             
+            # Aguardar redirecionamento ou mudança na página
             time.sleep(5)
             
-            # Navegar para a página de estoque
-            return self.navigate_to_stock_page()
+            # Verificar se login foi bem sucedido
+            current_url = self.driver.current_url
+            logger.info(f"URL após login: {current_url}")
+            
+            self.take_screenshot("apos_login")
+            
+            # Verificar elementos que indicam login bem sucedido
+            try:
+                # Verificar se existe o menu ou elementos da dashboard
+                self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, "main-sidebar")))
+                logger.info("Login realizado com sucesso!")
+                
+                # AGORA VAMOS NAVEGAR ATÉ A PÁGINA DE ESTOQUE USANDO O MENU
+                return self.navigate_to_stock_page_via_menu()
+                
+            except TimeoutException:
+                # Verificar se há mensagem de erro
+                try:
+                    error_elements = self.driver.find_elements(By.CLASS_NAME, "toast")
+                    if error_elements:
+                        error_text = error_elements[0].text
+                        logger.error(f"Erro de login: {error_text}")
+                        return False
+                except:
+                    pass
+                
+                # Verificar se ainda está na página de login
+                if "login" in current_url.lower():
+                    logger.error("Falha no login - ainda na página de login")
+                    return False
+                else:
+                    logger.info("Login aparentemente bem sucedido (URL mudou)")
+                    # Tentar navegar para a página de estoque mesmo assim
+                    return self.navigate_to_stock_page_via_menu()
                 
         except Exception as e:
             logger.error(f"Erro durante login: {str(e)}")
             self.take_screenshot("erro_login")
             return False
     
-    def navigate_to_stock_page(self):
-        """Navega para a página de estoque"""
+    def navigate_to_stock_page_via_menu(self):
+        """Navega para a página de estoque usando o menu lateral"""
         try:
-            # Ir diretamente para a URL de estoque
+            logger.info("Navegando para página de estoque via menu...")
+            
+            # Primeiro, precisamos expandir o menu "Estoque"
+            # Localizar o item do menu "Estoque"
+            try:
+                # Procurar o link ou botão que contém "Estoque" no texto
+                menu_estoque = None
+                
+                # Estratégia 1: Procurar por texto no menu lateral
+                xpaths = [
+                    "//a[contains(text(), 'Estoque')]",
+                    "//a[contains(., 'Estoque')]",
+                    "//*[contains(text(), 'Estoque') and contains(@class, 'nav-link')]",
+                    "//p[contains(text(), 'Estoque')]/parent::a",
+                    "//*[contains(text(), 'Estoque') and contains(@class, 'nav-item')]//a"
+                ]
+                
+                for xpath in xpaths:
+                    try:
+                        menu_estoque = self.driver.find_element(By.XPATH, xpath)
+                        logger.info(f"Menu Estoque encontrado com XPath: {xpath}")
+                        break
+                    except:
+                        continue
+                
+                if not menu_estoque:
+                    # Estratégia 2: Procurar no menu lateral por classe
+                    menu_items = self.driver.find_elements(By.CSS_SELECTOR, ".nav-link, .nav-item a")
+                    for item in menu_items:
+                        if "estoque" in item.text.lower():
+                            menu_estoque = item
+                            logger.info("Menu Estoque encontrado por texto")
+                            break
+                
+                if menu_estoque:
+                    # Clicar no menu Estoque para expandir
+                    menu_estoque.click()
+                    time.sleep(2)
+                    
+                    # Agora procurar o submenu "Previsão de estoque"
+                    submenu_previsao = None
+                    
+                    # Procurar o link específico para previsão de estoque
+                    submenu_xpaths = [
+                        "//a[contains(text(), 'Previsão de estoque')]",
+                        "//a[contains(., 'Previsão de estoque')]",
+                        "//a[@href='estoquePrevisaoConsulta.jsf']",
+                        "//a[contains(@href, 'estoquePrevisaoConsulta')]"
+                    ]
+                    
+                    for xpath in submenu_xpaths:
+                        try:
+                            submenu_previsao = self.driver.find_element(By.XPATH, xpath)
+                            logger.info(f"Submenu Previsão encontrado com XPath: {xpath}")
+                            break
+                        except:
+                            continue
+                    
+                    if submenu_previsao:
+                        # Clicar no submenu
+                        submenu_previsao.click()
+                        time.sleep(5)
+                        
+                        # Verificar se estamos na página correta
+                        current_url = self.driver.current_url
+                        logger.info(f"URL após navegação: {current_url}")
+                        
+                        if "estoquePrevisaoConsulta" in current_url:
+                            logger.info("Página de estoque carregada com sucesso via menu!")
+                            self.take_screenshot("pagina_estoque_via_menu")
+                            return True
+                        else:
+                            logger.warning(f"Não está na URL esperada. Tentando direto...")
+                            # Tentar acesso direto
+                            return self.navigate_direct_to_stock_page()
+                    else:
+                        logger.error("Submenu 'Previsão de estoque' não encontrado")
+                        # Tentar acesso direto
+                        return self.navigate_direct_to_stock_page()
+                else:
+                    logger.error("Menu 'Estoque' não encontrado")
+                    # Tentar acesso direto
+                    return self.navigate_direct_to_stock_page()
+                    
+            except Exception as e:
+                logger.error(f"Erro ao navegar pelo menu: {str(e)}")
+                self.take_screenshot("erro_navegacao_menu")
+                # Tentar acesso direto como fallback
+                return self.navigate_direct_to_stock_page()
+                
+        except Exception as e:
+            logger.error(f"Erro geral na navegação: {str(e)}")
+            return self.navigate_direct_to_stock_page()
+    
+    def navigate_direct_to_stock_page(self):
+        """Tenta acesso direto à URL de estoque como fallback"""
+        try:
+            logger.info("Tentando acesso direto à página de estoque...")
+            
+            # Ir DIRETAMENTE para a URL de estoque
             self.driver.get(self.url_estoque)
+            
+            # Aguardar carregamento da página
             time.sleep(5)
             
-            # Verificar se carregou corretamente
+            # Verificar se estamos na página correta
             current_url = self.driver.current_url
-            if "estoquePrevisaoConsulta" in current_url:
-                logger.info("Página de estoque carregada com sucesso!")
+            logger.info(f"URL após acesso direto: {current_url}")
+            
+            self.take_screenshot("depois_acesso_direto_estoque")
+            
+            # Tentar encontrar o campo de produto para confirmar que carregou
+            try:
+                # Primeiro tentar pelo ID
+                produto_field = self.driver.find_element(By.ID, "produto")
+                logger.info("Página de estoque carregada com sucesso! Campo 'produto' encontrado.")
                 return True
-            else:
-                # Tentar encontrar campo de produto
+            except NoSuchElementException:
+                # Tentar por NAME
                 try:
-                    self.driver.find_element(By.ID, "produto")
-                    logger.info("Campo 'produto' encontrado - página carregada")
+                    produto_field = self.driver.find_element(By.NAME, "produto")
+                    logger.info("Campo 'produto' encontrado por NAME")
                     return True
                 except:
-                    logger.error("Não conseguiu carregar página de estoque")
-                    return False
-                    
+                    # Tentar por XPath com texto parcial
+                    try:
+                        produto_field = self.driver.find_element(By.XPATH, "//input[contains(@name, 'produto') or contains(@id, 'produto')]")
+                        logger.info("Campo 'produto' encontrado por XPath")
+                        return True
+                    except:
+                        logger.warning("Não encontrou campo 'produto' específico")
+            
+            # Mesmo se não encontrar campo específico, verificar se a página carregou
+            page_source = self.driver.page_source.lower()
+            if "estoque" in page_source or "previsão" in page_source or "consulta" in page_source:
+                logger.info("Página parece ser de estoque (palavras-chave encontradas)")
+                return True
+            else:
+                logger.error("Não parece ser a página de estoque")
+                return False
+            
         except Exception as e:
-            logger.error(f"Erro ao navegar para página de estoque: {str(e)}")
+            logger.error(f"Erro no acesso direto à página de estoque: {str(e)}")
+            self.take_screenshot("erro_acesso_direto_estoque")
             return False
     
+    def navigate_to_stock_page(self):
+        """Método principal de navegação - tenta menu primeiro, depois direto"""
+        return self.navigate_to_stock_page_via_menu()
+    
     def search_product(self, produto_codigo, situacao="TINTO"):
-        """Realiza pesquisa de um produto específico COM SITUAÇÃO"""
+        """Realiza pesquisa de um produto específico"""
         try:
             logger.info(f"Pesquisando produto {produto_codigo}, situação {situacao}...")
             
@@ -202,103 +374,186 @@ class DGBScraper:
                         'error': 'Não conseguiu acessar página de estoque'
                     }
             
-            # Limpar campos
-            self.clear_fields()
+            # Limpar campos anteriores (se houver dados)
+            try:
+                # Tentar limpar campo produto
+                produto_field = self.driver.find_element(By.ID, "produto")
+                produto_field.clear()
+            except:
+                pass
             
             # Encontrar e preencher campo de produto
             try:
-                produto_field = self.driver.find_element(By.ID, "produto")
-                produto_field.clear()
-                produto_field.send_keys(str(produto_codigo))
-                logger.info(f"Produto {produto_codigo} preenchido")
+                # Tentar múltiplas estratégias para encontrar o campo
+                produto_field = None
+                strategies = [
+                    (By.ID, "produto"),
+                    (By.NAME, "produto"),
+                    (By.CSS_SELECTOR, "input[name*='produto']"),
+                    (By.XPATH, "//input[contains(@id, 'produto') or contains(@name, 'produto')]"),
+                    (By.XPATH, "//label[contains(text(), 'Produto')]/following-sibling::input")
+                ]
+                
+                for by, value in strategies:
+                    try:
+                        produto_field = self.driver.find_element(by, value)
+                        logger.info(f"Campo produto encontrado usando {by}: {value}")
+                        break
+                    except:
+                        continue
+                
+                if produto_field:
+                    produto_field.clear()
+                    produto_field.send_keys(str(produto_codigo))
+                    logger.info(f"Produto {produto_codigo} preenchido")
+                else:
+                    logger.error("Não encontrou campo de produto")
+                    return {
+                        'success': False,
+                        'codigo': produto_codigo,
+                        'error': 'Campo de produto não encontrado'
+                    }
+                    
             except Exception as e:
-                logger.error(f"Campo de produto não encontrado: {e}")
+                logger.error(f"Erro ao preencher produto: {str(e)}")
                 return {
                     'success': False,
                     'codigo': produto_codigo,
-                    'error': 'Campo de produto não encontrado'
+                    'error': f'Erro ao preencher produto: {str(e)}'
                 }
             
-            # Encontrar e preencher campo de situação (TINTO)
+            # Encontrar e preencher campo de situação
             try:
-                situacao_preenchida = self.fill_situacao_field(situacao)
-                if not situacao_preenchida:
-                    logger.warning(f"Não conseguiu preencher situação '{situacao}'")
+                situacao_field = None
+                strategies = [
+                    (By.ID, "situacao"),
+                    (By.NAME, "situacao"),
+                    (By.CSS_SELECTOR, "input[name*='situacao']"),
+                    (By.XPATH, "//input[contains(@id, 'situacao') or contains(@name, 'situacao')]"),
+                    (By.XPATH, "//label[contains(text(), 'Situação')]/following-sibling::input")
+                ]
+                
+                for by, value in strategies:
+                    try:
+                        situacao_field = self.driver.find_element(by, value)
+                        logger.info(f"Campo situação encontrado usando {by}: {value}")
+                        break
+                    except:
+                        continue
+                
+                if situacao_field:
+                    situacao_field.clear()
+                    situacao_field.send_keys(situacao)
+                    logger.info(f"Situação '{situacao}' preenchida")
+                else:
+                    logger.warning("Não encontrou campo de situação específico")
+                    # Tentar encontrar select em vez de input
+                    try:
+                        situacao_select = self.driver.find_element(By.CSS_SELECTOR, "select[name*='situacao']")
+                        select = Select(situacao_select)
+                        select.select_by_visible_text(situacao)
+                        logger.info(f"Situação selecionada no dropdown: {situacao}")
+                    except:
+                        logger.warning("Também não encontrou dropdown de situação")
+                    
             except Exception as e:
-                logger.warning(f"Erro ao preencher situação: {e}")
+                logger.warning(f"Erro ao preencher situação: {str(e)}")
             
             self.take_screenshot(f"antes_pesquisa_{produto_codigo}")
             
             # Encontrar e clicar no botão Pesquisar
             try:
-                pesquisar_clicado = self.click_pesquisar_button()
-                if not pesquisar_clicado:
-                    logger.error("Botão Pesquisar não clicado")
+                pesquisar_button = None
+                strategies = [
+                    (By.CSS_SELECTOR, "input[value*='Pesquisar'], input[value*='PESQUISAR']"),
+                    (By.XPATH, "//input[@type='submit' and contains(@value, 'Pesquisar')]"),
+                    (By.XPATH, "//button[contains(text(), 'Pesquisar')]"),
+                    (By.ID, "j_idt67"),  # ID específico do botão Pesquisar
+                    (By.CSS_SELECTOR, "input[type='submit']"),
+                    (By.XPATH, "//input[@type='submit']")
+                ]
+                
+                for by, value in strategies:
+                    try:
+                        if by == By.XPATH and "contains(text()" in value:
+                            pesquisar_button = self.driver.find_element(by, value)
+                        else:
+                            pesquisar_button = self.driver.find_element(by, value)
+                        logger.info(f"Botão pesquisar encontrado usando {by}")
+                        break
+                    except:
+                        continue
+                
+                if pesquisar_button:
+                    # Rolar até o botão para garantir que está visível
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", pesquisar_button)
+                    time.sleep(1)
+                    pesquisar_button.click()
+                    logger.info("Botão Pesquisar clicado")
+                else:
+                    logger.error("Não encontrou botão Pesquisar")
+                    # Tirar screenshot para debug
+                    self.take_screenshot(f"erro_botao_pesquisar_{produto_codigo}")
                     return {
                         'success': False,
                         'codigo': produto_codigo,
                         'error': 'Botão Pesquisar não encontrado'
                     }
-                
-                logger.info("Botão Pesquisar clicado")
+                    
             except Exception as e:
-                logger.error(f"Erro ao clicar no botão Pesquisar: {e}")
+                logger.error(f"Erro ao clicar no botão Pesquisar: {str(e)}")
                 return {
                     'success': False,
                     'codigo': produto_codigo,
-                    'error': f'Erro ao clicar em Pesquisar: {e}'
+                    'error': f'Erro ao clicar em Pesquisar: {str(e)}'
                 }
             
-            # Aguardar resultados
+            # Aguardar carregamento dos resultados
             time.sleep(5)
             
             # Verificar se há resultados
             try:
+                # Aguardar carregamento
+                time.sleep(3)
+                
                 self.take_screenshot(f"resultados_{produto_codigo}")
                 
                 # Extrair dados da página
-                dados = self.extract_stock_data_corrigido(produto_codigo, situacao)
+                dados = self.extract_stock_data(produto_codigo)
                 
-                if dados:
+                return {
+                    'success': True,
+                    'codigo': produto_codigo,
+                    'situacao': situacao,
+                    'dados': dados,
+                    'timestamp': datetime.now().isoformat(),
+                    'total_registros': len(dados) if dados else 0
+                }
+                
+            except Exception as e:
+                logger.error(f"Erro ao aguardar resultados: {str(e)}")
+                # Verificar se há mensagem de "nenhum resultado"
+                page_source = self.driver.page_source
+                if "nenhum" in page_source.lower() or "não encontrado" in page_source.lower() or "no records" in page_source.lower():
+                    logger.warning(f"Nenhum resultado encontrado para produto {produto_codigo}")
                     return {
                         'success': True,
                         'codigo': produto_codigo,
                         'situacao': situacao,
-                        'dados': dados,
+                        'dados': [],
                         'timestamp': datetime.now().isoformat(),
-                        'total_registros': len(dados)
+                        'total_registros': 0,
+                        'mensagem': 'Nenhum resultado encontrado'
                     }
                 else:
-                    # Verificar se há mensagem de "nenhum resultado"
-                    page_source = self.driver.page_source.lower()
-                    if "nenhum" in page_source or "não encontrado" in page_source or "no records" in page_source:
-                        logger.warning(f"Nenhum resultado encontrado para produto {produto_codigo}")
-                        return {
-                            'success': True,
-                            'codigo': produto_codigo,
-                            'situacao': situacao,
-                            'dados': [],
-                            'timestamp': datetime.now().isoformat(),
-                            'total_registros': 0,
-                            'mensagem': 'Nenhum resultado encontrado'
-                        }
-                    else:
-                        return {
-                            'success': False,
-                            'codigo': produto_codigo,
-                            'error': 'Nenhum dado extraído da página'
-                        }
+                    return {
+                        'success': False,
+                        'codigo': produto_codigo,
+                        'error': f'Timeout ao aguardar resultados: {str(e)}'
+                    }
                     
-            except Exception as e:
-                logger.error(f"Erro ao aguardar resultados: {e}")
-                return {
-                    'success': False,
-                    'codigo': produto_codigo,
-                    'error': f'Timeout ao aguardar resultados: {e}'
-                }
-                
         except Exception as e:
-            logger.error(f"Erro ao pesquisar produto {produto_codigo}: {e}")
+            logger.error(f"Erro ao pesquisar produto {produto_codigo}: {str(e)}")
             self.take_screenshot(f"erro_pesquisa_{produto_codigo}")
             return {
                 'success': False,
@@ -306,519 +561,62 @@ class DGBScraper:
                 'error': str(e)
             }
     
-    def clear_fields(self):
-        """Limpa os campos de pesquisa"""
-        try:
-            # Limpar campo produto
-            produto_field = self.driver.find_element(By.ID, "produto")
-            produto_field.clear()
-        except:
-            pass
-        
-        try:
-            # Limpar campo situação
-            situacao_field = self.driver.find_element(By.ID, "situacao")
-            situacao_field.clear()
-        except:
-            pass
-    
-    def fill_situacao_field(self, situacao="TINTO"):
-        """Preenche o campo de situação"""
-        try:
-            # Estratégia 1: Tentar por ID
-            try:
-                situacao_field = self.driver.find_element(By.ID, "situacao")
-                situacao_field.clear()
-                situacao_field.send_keys(situacao)
-                logger.info(f"Situação '{situacao}' preenchida por ID")
-                return True
-            except:
-                pass
-            
-            # Estratégia 2: Tentar por NAME
-            try:
-                situacao_field = self.driver.find_element(By.NAME, "situacao")
-                situacao_field.clear()
-                situacao_field.send_keys(situacao)
-                logger.info(f"Situação '{situacao}' preenchida por NAME")
-                return True
-            except:
-                pass
-            
-            # Estratégia 3: Tentar por XPath
-            try:
-                situacao_field = self.driver.find_element(By.XPATH, "//input[contains(@id, 'situacao') or contains(@name, 'situacao')]")
-                situacao_field.clear()
-                situacao_field.send_keys(situacao)
-                logger.info(f"Situação '{situacao}' preenchida por XPath")
-                return True
-            except:
-                pass
-            
-            # Estratégia 4: Tentar por label
-            try:
-                situacao_label = self.driver.find_element(By.XPATH, "//label[contains(text(), 'Situação')]")
-                situacao_field = situacao_label.find_element(By.XPATH, "following-sibling::input")
-                situacao_field.clear()
-                situacao_field.send_keys(situacao)
-                logger.info(f"Situação '{situacao}' preenchida por label")
-                return True
-            except:
-                pass
-            
-            # Estratégia 5: Tentar dropdown select
-            try:
-                situacao_select = self.driver.find_element(By.CSS_SELECTOR, "select[name*='situacao']")
-                select = Select(situacao_select)
-                select.select_by_visible_text(situacao)
-                logger.info(f"Situação '{situacao}' selecionada no dropdown")
-                return True
-            except:
-                pass
-            
-            logger.warning(f"Não encontrou campo de situação para preencher '{situacao}'")
-            return False
-            
-        except Exception as e:
-            logger.warning(f"Erro ao preencher situação '{situacao}': {e}")
-            return False
-    
-    def click_pesquisar_button(self):
-        """Clica no botão Pesquisar"""
-        try:
-            # Estratégia 1: Botão por texto
-            try:
-                pesquisar_button = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Pesquisar') or contains(text(), 'PESQUISAR')]")
-                pesquisar_button.click()
-                return True
-            except:
-                pass
-            
-            # Estratégia 2: Input submit
-            try:
-                pesquisar_button = self.driver.find_element(By.XPATH, "//input[@type='submit' and contains(@value, 'Pesquisar')]")
-                pesquisar_button.click()
-                return True
-            except:
-                pass
-            
-            # Estratégia 3: Por ID específico
-            try:
-                pesquisar_button = self.driver.find_element(By.ID, "j_idt67")
-                pesquisar_button.click()
-                return True
-            except:
-                pass
-            
-            # Estratégia 4: Qualquer botão submit
-            try:
-                pesquisar_button = self.driver.find_element(By.CSS_SELECTOR, "input[type='submit']")
-                pesquisar_button.click()
-                return True
-            except:
-                pass
-            
-            # Estratégia 5: Qualquer botão
-            try:
-                pesquisar_button = self.driver.find_element(By.XPATH, "//button[@type='submit']")
-                pesquisar_button.click()
-                return True
-            except:
-                pass
-            
-            logger.error("Nenhuma estratégia encontrou o botão Pesquisar")
-            return False
-            
-        except Exception as e:
-            logger.error(f"Erro ao clicar no botão Pesquisar: {e}")
-            return False
-    
-    def extract_stock_data_corrigido(self, produto_codigo, situacao):
-        """Extrai dados da tabela de estoque - VERSÃO COMPLETAMENTE CORRIGIDA"""
-        dados_estruturados = []
-        
-        try:
-            logger.info(f"Extraindo dados para produto {produto_codigo}, situação {situacao}...")
-            
-            # Tirar screenshot para debug
-            self.take_screenshot(f"extraindo_dados_{produto_codigo}")
-            
-            # Primeiro, extrair informações básicas da página
-            page_text = self.driver.find_element(By.TAG_NAME, "body").text
-            logger.debug(f"Texto da página (primeiros 500 chars): {page_text[:500]}")
-            
-            # Extrair dados usando múltiplas estratégias
-            dados = self.extract_data_multiple_strategies(page_text, produto_codigo, situacao)
-            
-            if dados:
-                dados_estruturados.extend(dados)
-                logger.info(f"Extraídos {len(dados)} registros para produto {produto_codigo}")
-            else:
-                # Se não extraiu dados, tentar método direto
-                logger.warning("Método principal não extraiu dados, tentando método alternativo...")
-                dados_alternativos = self.extract_data_direct_method(produto_codigo, situacao)
-                if dados_alternativos:
-                    dados_estruturados.extend(dados_alternativos)
-                    logger.info(f"Extraídos {len(dados_alternativos)} registros (método alternativo)")
-            
-            # Se ainda não tem dados, tentar última estratégia
-            if not dados_estruturados:
-                logger.warning("Nenhum dado extraído, tentando última estratégia...")
-                dados_ultima = self.extract_data_last_resort(produto_codigo, situacao)
-                if dados_ultima:
-                    dados_estruturados.extend(dados_ultima)
-            
-        except Exception as e:
-            logger.error(f"Erro na extração: {str(e)}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-        
-        return dados_estruturados
-    
-    def extract_data_multiple_strategies(self, page_text, produto_codigo, situacao):
-        """Extrai dados usando múltiplas estratégias"""
+    def extract_stock_data(self, produto_codigo):
+        """Extrai dados da tabela de estoque"""
         dados = []
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         try:
-            # Normalizar texto
-            page_text = page_text.replace('\n', ' ').replace('\t', ' ')
-            page_text = ' '.join(page_text.split())
+            # Obter o HTML da página
+            page_source = self.driver.page_source
             
-            # Extrair informações do produto
-            produto_info = self.extract_product_info(page_text, produto_codigo)
+            # Salvar HTML para análise
+            html_path = f"html_produto_{produto_codigo}_{datetime.now().strftime('%H%M%S')}.html"
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(page_source)
+            logger.info(f"HTML salvo: {html_path}")
             
-            # Procurar por "Pronta entrega" e datas
-            # Dividir texto em seções
-            sections = self.split_into_sections(page_text)
+            soup = BeautifulSoup(page_source, 'html.parser')
             
-            for section in sections:
-                if section and len(section) > 20:
-                    # Processar seção
-                    registros = self.process_section(section, produto_info, timestamp)
-                    if registros:
-                        dados.extend(registros)
+            # Estratégia 1: Procurar por tabelas
+            tabelas = soup.find_all('table')
+            logger.info(f"Encontradas {len(tabelas)} tabelas na página")
             
-        except Exception as e:
-            logger.error(f"Erro em extract_data_multiple_strategies: {e}")
-        
-        return dados
-    
-    def extract_product_info(self, page_text, produto_codigo):
-        """Extrai informações do produto do texto da página"""
-        info = {
-            'artigo': str(produto_codigo).zfill(6),
-            'descricao_completa': f"0000{produto_codigo} PRODUTO {produto_codigo} 001 TINTO / 00000 LISO / 00000 Padrao",
-            'cor': "NÃO IDENTIFICADA",
-            'cor_codigo': "00000"
-        }
-        
-        try:
-            # Procurar por padrão de produto: código + nome
-            match_produto = re.search(r'(\d{6})\s+([A-Z][A-Z\s]+?)(?=\s+\d{3}|$)', page_text)
-            if match_produto:
-                artigo = match_produto.group(1)
-                nome = match_produto.group(2).strip()
+            for i, tabela in enumerate(tabelas):
+                # Extrair linhas da tabela
+                linhas = tabela.find_all('tr')
                 
-                # Procurar cor
-                match_cor = re.search(r'/\s*(\d{5})\s+(\d+)\s*-\s*([A-Z\s]+?)(?=\s+\d{5}|00000|$)', page_text)
-                
-                if match_cor:
-                    cor_codigo = match_cor.group(1)
-                    cor_numero = match_cor.group(2)
-                    cor_nome = match_cor.group(3).strip()
+                for linha in linhas:
+                    celulas = linha.find_all(['td', 'th'])
                     
-                    info['artigo'] = artigo
-                    info['descricao_completa'] = f"{artigo} {nome} 001 TINTO / {cor_codigo} {cor_numero} - {cor_nome} 00000 LISO / 00000 Padrao"
-                    info['cor'] = f"{cor_numero} - {cor_nome}"
-                    info['cor_codigo'] = cor_codigo
-                else:
-                    info['artigo'] = artigo
-                    info['descricao_completa'] = f"{artigo} {nome} 001 TINTO / 00000 LISO / 00000 Padrao"
-        
-        except Exception as e:
-            logger.debug(f"Erro ao extrair info do produto: {e}")
-        
-        return info
-    
-    def split_into_sections(self, text):
-        """Divide o texto em seções para processamento"""
-        sections = []
-        
-        try:
-            # Dividir por padrões comuns
-            split_patterns = [
-                r'Pronta entrega',
-                r'\d{2}/\d{2}/\d{4}',
-                r'\b\d{6}\b'
-            ]
+                    if celulas:
+                        dados_linha = []
+                        for celula in celulas:
+                            texto = celula.get_text(strip=True, separator=' ')
+                            texto = ' '.join(texto.split())
+                            if texto:
+                                dados_linha.append(texto)
+                        
+                        if dados_linha:
+                            # Adicionar informações adicionais
+                            dados_linha.insert(0, str(produto_codigo))
+                            dados_linha.insert(1, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                            dados.append(dados_linha)
             
-            current_section = ""
-            lines = text.split('  ')  # Separar por múltiplos espaços
+            # Estratégia 2: Procurar por divs que possam conter dados
+            if not dados:
+                # Procurar na div específica de resultados
+                resultado_div = soup.find('div', {'id': 'estoquePrevisaoList'})
+                if resultado_div:
+                    texto = resultado_div.get_text(strip=True, separator='\n')
+                    linhas_texto = texto.split('\n')
+                    for linha_texto in linhas_texto:
+                        if linha_texto.strip() and len(linha_texto.strip()) > 5:
+                            dados.append([produto_codigo, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), linha_texto])
             
-            for line in lines:
-                line = line.strip()
-                if line:
-                    # Se a linha começa com padrão importante, iniciar nova seção
-                    if any(re.match(pattern, line) for pattern in split_patterns):
-                        if current_section:
-                            sections.append(current_section)
-                        current_section = line
-                    else:
-                        current_section += " " + line
-            
-            if current_section:
-                sections.append(current_section)
+            logger.info(f"Extraídos {len(dados)} registros para produto {produto_codigo}")
             
         except Exception as e:
-            logger.error(f"Erro ao dividir em seções: {e}")
-        
-        return sections if sections else [text]
-    
-    def process_section(self, section, produto_info, timestamp):
-        """Processa uma seção do texto extraído"""
-        registros = []
-        
-        try:
-            # Corrigir formatação de números
-            section = self.corrigir_formatacao_numeros(section)
-            
-            # Procurar por "Pronta entrega"
-            if 'Pronta entrega' in section:
-                registro = self.create_pronta_entrega_record(section, produto_info, timestamp)
-                if registro:
-                    registros.append(registro)
-            
-            # Procurar por datas futuras
-            datas = re.findall(r'\d{2}/\d{2}/\d{4}', section)
-            for data in datas:
-                registro = self.create_future_date_record(section, data, produto_info, timestamp)
-                if registro:
-                    registros.append(registro)
-        
-        except Exception as e:
-            logger.error(f"Erro ao processar seção: {e}")
-        
-        return registros
-    
-    def corrigir_formatacao_numeros(self, texto):
-        """Corrige formatação dos números no texto"""
-        try:
-            # Corrigir números com espaço: "16.605 30" -> "16.605,30"
-            texto = re.sub(r'(\d{1,3}(?:\.\d{3})+)\s+(\d{2})(?=\s|$|[^\d])', r'\1,\2', texto)
-            
-            # Corrigir números simples: "100 60" -> "100,60"
-            texto = re.sub(r'(\b\d{1,3})\s+(\d{2}\b)(?=\s|$|[^\d])', r'\1,\2', texto)
-            
-            # Normalizar "Pronta entrega"
-            texto = re.sub(r'Pronta\s+entrega', 'Pronta entrega', texto, flags=re.IGNORECASE)
-            
-            # Normalizar datas
-            texto = re.sub(r'(\d{2})\s*/\s*(\d{2})\s*/\s*(\d{4})', r'\1/\2/\3', texto)
-            
-            # Remover múltiplos espaços
-            texto = ' '.join(texto.split())
-            
-        except Exception as e:
-            logger.debug(f"Erro na correção de números: {e}")
-        
-        return texto
-    
-    def create_pronta_entrega_record(self, section, produto_info, timestamp):
-        """Cria registro para 'Pronta entrega'"""
-        try:
-            # Encontrar números após "Pronta entrega"
-            pattern = r'Pronta entrega\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)'
-            match = re.search(pattern, section)
-            
-            if match:
-                estoque = match.group(1)
-                pedidos = match.group(2)
-                disponivel = match.group(3)
-                
-                # Garantir formatação correta
-                estoque = estoque.replace(' ', '').strip()
-                pedidos = pedidos.replace(' ', '').strip()
-                disponivel = disponivel.replace(' ', '').strip()
-                
-                registro = [
-                    produto_info['artigo'],
-                    timestamp,
-                    produto_info['descricao_completa'],
-                    'Pronta entrega',
-                    estoque,
-                    pedidos,
-                    disponivel
-                ]
-                
-                logger.debug(f"Registro Pronta entrega: {registro}")
-                return registro
-        
-        except Exception as e:
-            logger.error(f"Erro ao criar registro Pronta entrega: {e}")
-        
-        return None
-    
-    def create_future_date_record(self, section, data, produto_info, timestamp):
-        """Cria registro para data futura"""
-        try:
-            # Encontrar números após a data
-            pattern = re.escape(data) + r'\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)'
-            match = re.search(pattern, section)
-            
-            if match:
-                estoque = match.group(1)
-                pedidos = match.group(2)
-                disponivel = match.group(3)
-                
-                # Garantir formatação correta
-                estoque = estoque.replace(' ', '').strip()
-                pedidos = pedidos.replace(' ', '').strip()
-                disponivel = disponivel.replace(' ', '').strip()
-                
-                registro = [
-                    produto_info['artigo'],
-                    timestamp,
-                    produto_info['descricao_completa'],
-                    data,
-                    estoque,
-                    pedidos,
-                    disponivel
-                ]
-                
-                logger.debug(f"Registro data {data}: {registro}")
-                return registro
-        
-        except Exception as e:
-            logger.error(f"Erro ao criar registro data {data}: {e}")
-        
-        return None
-    
-    def extract_data_direct_method(self, produto_codigo, situacao):
-        """Método alternativo de extração de dados"""
-        dados = []
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        try:
-            # Usar JavaScript para extrair tabelas
-            js_script = """
-            function extractTableData() {
-                var resultados = [];
-                var tables = document.getElementsByTagName('table');
-                
-                for (var i = 0; i < tables.length; i++) {
-                    var rows = tables[i].getElementsByTagName('tr');
-                    
-                    for (var j = 0; j < rows.length; j++) {
-                        var cells = rows[j].getElementsByTagName('td');
-                        if (cells.length >= 4) {
-                            var rowData = [];
-                            for (var k = 0; k < cells.length; k++) {
-                                rowData.push(cells[k].textContent.trim());
-                            }
-                            resultados.push(rowData.join(' | '));
-                        }
-                    }
-                }
-                return resultados;
-            }
-            return extractTableData();
-            """
-            
-            rows = self.driver.execute_script(js_script)
-            
-            if rows:
-                for row in rows:
-                    if len(row) > 50:  # Linha com dados
-                        # Processar a linha
-                        registro = self.process_table_row(row, produto_codigo, timestamp)
-                        if registro:
-                            dados.append(registro)
-        
-        except Exception as e:
-            logger.error(f"Erro no método direto: {e}")
-        
-        return dados
-    
-    def process_table_row(self, row_text, produto_codigo, timestamp):
-        """Processa uma linha da tabela"""
-        try:
-            # Simplificar: buscar padrões comuns
-            # Exemplo: "Pronta entrega 16.605,30 16.605,30 0,00"
-            match_pronta = re.search(r'Pronta entrega\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)', row_text)
-            if match_pronta:
-                return [
-                    str(produto_codigo).zfill(6),
-                    timestamp,
-                    f"0000{produto_codigo} PRODUTO {produto_codigo} 001 TINTO / 00000 LISO / 00000 Padrao",
-                    'Pronta entrega',
-                    match_pronta.group(1),
-                    match_pronta.group(2),
-                    match_pronta.group(3)
-                ]
-            
-            # Data futura: "19/01/2026 14.766,10 8.044,70 6.721,40"
-            match_data = re.search(r'(\d{2}/\d{2}/\d{4})\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)', row_text)
-            if match_data:
-                return [
-                    str(produto_codigo).zfill(6),
-                    timestamp,
-                    f"0000{produto_codigo} PRODUTO {produto_codigo} 001 TINTO / 00000 LISO / 00000 Padrao",
-                    match_data.group(1),
-                    match_data.group(2),
-                    match_data.group(3),
-                    match_data.group(4)
-                ]
-        
-        except Exception as e:
-            logger.error(f"Erro ao processar linha da tabela: {e}")
-        
-        return None
-    
-    def extract_data_last_resort(self, produto_codigo, situacao):
-        """Última estratégia de extração"""
-        dados = []
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        try:
-            # Extrair texto completo
-            full_text = self.driver.find_element(By.TAG_NAME, "body").text
-            full_text = full_text.replace('\n', ' ').replace('\t', ' ')
-            full_text = ' '.join(full_text.split())
-            
-            # Buscar padrões diretos
-            # Padrão 1: "Pronta entrega" seguido de 3 números
-            pattern1 = r'Pronta entrega\D*?(\d[\d.,]*\d)\D*?(\d[\d.,]*\d)\D*?(\d[\d.,]*\d)'
-            matches1 = re.findall(pattern1, full_text, re.IGNORECASE)
-            
-            for match in matches1:
-                dados.append([
-                    str(produto_codigo).zfill(6),
-                    timestamp,
-                    f"0000{produto_codigo} PRODUTO {produto_codigo} 001 {situacao} / 00000 LISO / 00000 Padrao",
-                    'Pronta entrega',
-                    match[0].replace(' ', ''),
-                    match[1].replace(' ', ''),
-                    match[2].replace(' ', '')
-                ])
-            
-            # Padrão 2: Data seguida de 3 números
-            pattern2 = r'(\d{2}/\d{2}/\d{4})\D*?(\d[\d.,]*\d)\D*?(\d[\d.,]*\d)\D*?(\d[\d.,]*\d)'
-            matches2 = re.findall(pattern2, full_text)
-            
-            for match in matches2:
-                dados.append([
-                    str(produto_codigo).zfill(6),
-                    timestamp,
-                    f"0000{produto_codigo} PRODUTO {produto_codigo} 001 {situacao} / 00000 LISO / 00000 Padrao",
-                    match[0],
-                    match[1].replace(' ', ''),
-                    match[2].replace(' ', ''),
-                    match[3].replace(' ', '')
-                ])
-        
-        except Exception as e:
-            logger.error(f"Erro na última estratégia: {e}")
+            logger.error(f"Erro ao extrair dados: {str(e)}")
         
         return dados
     
@@ -832,65 +630,183 @@ class DGBScraper:
                 pass
 
 # Funções auxiliares para o Flask
-def salvar_csv_estruturado(dados, produto_codigo, situacao, tipo='individual'):
-    """Salva os dados em um arquivo CSV com estrutura correta"""
+def salvar_csv(dados, produto_codigo, tipo='individual'):
+    """Salva os dados em um arquivo CSV"""
     try:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         if tipo == 'individual':
-            filename = f"produto_{produto_codigo}_{situacao}_{timestamp}.csv"
+            filename = f"produto_{produto_codigo}_{timestamp}.csv"
             filepath = os.path.join(CSV_FOLDER, filename)
-            
-            # Cabeçalho correto
-            cabecalho = ['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante', 
-                        'Previsão', 'Estoque', 'Pedidos', 'Disponível']
-            
-            with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
-                writer = csv.writer(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                
-                # Escrever cabeçalho
-                writer.writerow(cabecalho)
-                
-                # Escrever dados
-                for linha in dados:
-                    if len(linha) == 7:  # Verificar se tem todas as colunas
-                        # Garantir que valores numéricos estão corretos
-                        linha = [str(item).strip() for item in linha]
-                        writer.writerow(linha)
-            
-            logger.info(f"✅ CSV salvo: {filepath}")
-            
-            # Logar amostra
-            if dados:
-                logger.info(f"📄 Amostra do arquivo {filename} (primeiras 3 linhas):")
-                for i, linha in enumerate(dados[:3]):
-                    logger.info(f"  Linha {i}: {linha}")
-            
-            return filename
-            
         else:
-            # Para arquivos consolidados
             filename = f"consolidado_{timestamp}.csv"
             filepath = os.path.join(CONSOLIDATED_FOLDER, filename)
+        
+        with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
+            writer = csv.writer(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             
-            with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
-                writer = csv.writer(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # Escrever cabeçalho se for consolidado
+            if tipo == 'consolidado' and dados:
+                cabecalho = ['CODIGO_PRODUTO', 'DATA_HORA', 'PRODUTO_DESCRICAO', 
+                           'SITUACAO', 'COR', 'DESENHO', 'VARIANTE', 
+                           'PRONTA_ENTREGA', 'ESTOQUE', 'PEDIDOS', 'DISPONIVEL']
+                writer.writerow(cabecalho)
+            
+            for linha in dados:
+                writer.writerow(linha)
+        
+        logger.info(f"Dados salvos em {filepath}")
+        return filename
+    except Exception as e:
+        logger.error(f"Erro ao salvar CSV: {str(e)}")
+        return None
+
+def consolidar_dados():
+    """Consolida todos os CSVs em um único arquivo"""
+    try:
+        arquivos_csv = [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]
+        
+        if not arquivos_csv:
+            return None, "Nenhum arquivo CSV encontrado para consolidar"
+        
+        dados_consolidados = []
+        
+        for arquivo in arquivos_csv:
+            filepath = os.path.join(CSV_FOLDER, arquivo)
+            
+            try:
+                # Extrair código do produto do nome do arquivo
+                codigo_match = re.search(r'produto_(\d+)_', arquivo)
+                codigo_produto = codigo_match.group(1) if codigo_match else 'N/A'
                 
-                if dados and len(dados) > 0:
-                    # Usar o primeiro registro para determinar cabeçalho
-                    if len(dados[0]) == 7:
-                        cabecalho = ['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante', 
-                                    'Previsão', 'Estoque', 'Pedidos', 'Disponível']
-                        writer.writerow(cabecalho)
+                # Ler o arquivo CSV
+                with open(filepath, 'r', encoding='utf-8-sig') as csvfile:
+                    reader = csv.reader(csvfile, delimiter=';')
                     
-                    for linha in dados:
-                        writer.writerow(linha)
-            
-            logger.info(f"✅ CSV consolidado salvo: {filepath}")
-            return filename
+                    for linha in reader:
+                        if linha:  # Ignorar linhas vazias
+                            # Adicionar código do produto se não estiver presente
+                            if len(linha) > 0 and linha[0] != codigo_produto:
+                                linha.insert(0, codigo_produto)
+                            dados_consolidados.append(linha)
+                            
+            except Exception as e:
+                logger.error(f"Erro ao processar arquivo {arquivo}: {str(e)}")
+                continue
+        
+        if dados_consolidados:
+            # Salvar consolidado
+            filename = salvar_csv(dados_consolidados, 'CONSOLIDADO', 'consolidado')
+            return filename, f"Consolidados {len(dados_consolidados)} registros de {len(arquivos_csv)} arquivos"
+        else:
+            return None, "Nenhum dado para consolidar"
             
     except Exception as e:
-        logger.error(f"❌ Erro ao salvar CSV: {str(e)}")
+        logger.error(f"Erro na consolidação: {str(e)}")
+        return None, f"Erro na consolidação: {str(e)}"
+
+def gerar_relatorio_pdf(dados_consolidados):
+    """Gera relatório PDF com os dados consolidados"""
+    try:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"relatorio_consolidado_{timestamp}.pdf"
+        filepath = os.path.join(PDF_FOLDER, filename)
+        
+        # Criar documento PDF
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=landscape(A4),
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18
+        )
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        titulo_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30,
+            alignment=1  # Center
+        )
+        
+        titulo = Paragraph(f"<b>RELATÓRIO CONSOLIDADO - DGB COMEX</b><br/>"
+                          f"<font size=10>Data de geração: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</font>",
+                          titulo_style)
+        elements.append(titulo)
+        
+        # Resumo
+        if dados_consolidados:
+            total_registros = len(dados_consolidados)
+            produtos_unicos = len(set([linha[0] for linha in dados_consolidados if len(linha) > 0]))
+            
+            resumo = Paragraph(
+                f"<b>RESUMO:</b><br/>"
+                f"Total de registros: {total_registros}<br/>"
+                f"Produtos processados: {produtos_unicos}<br/>"
+                f"Data da última coleta: {dados_consolidados[0][1] if len(dados_consolidados[0]) > 1 else 'N/A'}",
+                styles['Normal']
+            )
+            elements.append(resumo)
+            elements.append(Spacer(1, 20))
+        
+        # Tabela de dados
+        if dados_consolidados:
+            # Preparar dados para tabela (limitar a 50 linhas para o relatório)
+            dados_tabela = dados_consolidados[:50]
+            
+            # Criar tabela
+            tabela = Table(dados_tabela, repeatRows=1)
+            
+            # Estilizar tabela
+            estilo = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            ])
+            
+            tabela.setStyle(estilo)
+            elements.append(tabela)
+            
+            if len(dados_consolidados) > 50:
+                elements.append(Spacer(1, 10))
+                aviso = Paragraph(
+                    f"<i>Mostrando 50 de {len(dados_consolidados)} registros. "
+                    f"Consulte o arquivo CSV para dados completos.</i>",
+                    styles['Italic']
+                )
+                elements.append(aviso)
+        else:
+            elements.append(Paragraph("Nenhum dado disponível para exibição.", styles['Normal']))
+        
+        # Rodapé
+        elements.append(Spacer(1, 20))
+        rodape = Paragraph(
+            f"<font size=7>Sistema de Web Scraping DGB COMEX - "
+            f"Gerado automaticamente em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</font>",
+            styles['Normal']
+        )
+        elements.append(rodape)
+        
+        # Gerar PDF
+        doc.build(elements)
+        
+        logger.info(f"PDF gerado: {filepath}")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Erro ao gerar PDF: {str(e)}")
         return None
 
 # Variáveis globais para controle do scraping
@@ -929,16 +845,16 @@ def run_scraping():
         scraping_status['results'] = []
         
         # Inicializar scraper
-        scraper = DGBScraper(headless=False)
+        scraper = DGBScraper(headless=False)  # False para debugging
         
-        # Realizar login
-        scraping_status['message'] = 'Realizando login...'
+        # Realizar login e navegar para estoque
+        scraping_status['message'] = 'Realizando login e navegando para estoque...'
         if not scraper.login():
-            scraping_status['message'] = 'Falha no login.'
+            scraping_status['message'] = 'Falha no login ou navegação para estoque.'
             scraping_status['running'] = False
             return
         
-        scraping_status['message'] = 'Login realizado! Iniciando consultas...'
+        scraping_status['message'] = 'Login realizado com sucesso! Iniciando consultas...'
         
         # Processar cada produto
         for i, produto in enumerate(produtos, 1):
@@ -949,33 +865,50 @@ def run_scraping():
             scraping_status['progress'] = int((i / len(produtos)) * 100)
             scraping_status['message'] = f'Processando produto {produto} ({i}/{len(produtos)})'
             
-            # Pesquisar produto com situação TINTO
+            # Pesquisar produto
             resultado = scraper.search_product(produto, "TINTO")
             
             if resultado['success']:
                 if resultado.get('dados'):
                     # Salvar CSV individual
-                    filename = salvar_csv_estruturado(resultado['dados'], produto, "TINTO")
+                    filename = salvar_csv(resultado['dados'], produto)
                     resultado['arquivo'] = filename
-                    resultado['situacao'] = "TINTO"
-                    scraping_status['message'] = f'✅ Produto {produto} processado: {len(resultado["dados"])} registros'
+                    scraping_status['message'] = f'Produto {produto} processado: {len(resultado["dados"])} registros'
                 else:
-                    scraping_status['message'] = f'⚠️ Produto {produto}: nenhum dado encontrado'
-                    resultado['situacao'] = "TINTO"
+                    scraping_status['message'] = f'Produto {produto}: nenhum dado encontrado'
                 
                 scraping_status['results'].append(resultado)
             else:
-                scraping_status['message'] = f'❌ Erro no produto {produto}: {resultado.get("error", "Erro desconhecido")}'
+                scraping_status['message'] = f'Erro no produto {produto}: {resultado.get("error", "Erro desconhecido")}'
             
-            # Pausa entre requisições
-            time.sleep(3)
+            # Pequena pausa entre requisições
+            time.sleep(2)
         
         scraping_status['end_time'] = datetime.now().isoformat()
-        scraping_status['message'] = '✅ Scraping concluído com sucesso!'
+        scraping_status['message'] = 'Scraping concluído com sucesso!'
+        
+        # Consolidar dados
+        scraping_status['message'] = 'Consolidando dados...'
+        filename, mensagem = consolidar_dados()
+        if filename:
+            scraping_status['consolidated_file'] = filename
+            scraping_status['consolidated_message'] = mensagem
+            
+            # Gerar PDF
+            # Ler dados consolidados para gerar PDF
+            consolidated_path = os.path.join(CONSOLIDATED_FOLDER, filename)
+            if os.path.exists(consolidated_path):
+                with open(consolidated_path, 'r', encoding='utf-8-sig') as f:
+                    reader = csv.reader(f, delimiter=';')
+                    dados_consolidados = list(reader)[1:]  # Pular cabeçalho
+                
+                pdf_filename = gerar_relatorio_pdf(dados_consolidados)
+                if pdf_filename:
+                    scraping_status['pdf_file'] = pdf_filename
         
     except Exception as e:
-        logger.error(f"❌ Erro na thread de scraping: {str(e)}")
-        scraping_status['message'] = f'❌ Erro durante scraping: {str(e)}'
+        logger.error(f"Erro na thread de scraping: {str(e)}")
+        scraping_status['message'] = f'Erro durante scraping: {str(e)}'
     finally:
         if scraper:
             scraper.close()
@@ -1027,15 +960,23 @@ def stop_scraping():
     scraping_status['running'] = False
     return jsonify({'success': True, 'message': 'Scraping sendo interrompido'})
 
+# app.py (APENAS a função consolidate() precisa ser atualizada)
 @app.route('/api/consolidate', methods=['POST'])
 def consolidate():
-    """Consolida os dados coletados"""
+    """Consolida os dados coletados usando o sistema formatado"""
     try:
-        from consolidator import consolidar_dados_estruturados
+        # Importar e usar o novo consolidador formatado
+        from consolidator import consolidar_dados_formatado
         
-        resultado, mensagem = consolidar_dados_estruturados()
+        resultado, mensagem = consolidar_dados_formatado()
         
         if resultado:
+            # Para compatibilidade, mantenha 'total_quantidade' e adicione novos campos
+            total_quantidade = resultado.get('total_quantidade', 0)  # Campo antigo
+            total_estoque = resultado.get('total_estoque', total_quantidade)  # Campo novo
+            total_pedidos = resultado.get('total_pedidos', 0)
+            total_disponivel = resultado.get('total_disponivel', 0)
+            
             return jsonify({
                 'success': True,
                 'message': mensagem,
@@ -1043,13 +984,15 @@ def consolidate():
                 'arquivos': {
                     'csv': resultado.get('arquivo_csv'),
                     'excel': resultado.get('arquivo_excel'),
-                    'json': f"resumo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                    'pivot': resultado.get('arquivo_pivot', ''),
+                    'json': f"resumo_consolidacao_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
                 },
                 'estatisticas': {
                     'total_registros': resultado.get('total_registros', 0),
-                    'total_estoque': resultado.get('total_estoque', 0),
-                    'total_pedidos': resultado.get('total_pedidos', 0),
-                    'total_disponivel': resultado.get('total_disponivel', 0),
+                    'total_quantidade': total_quantidade,  # Mantido para compatibilidade
+                    'total_estoque': total_estoque,        # Novo campo
+                    'total_pedidos': total_pedidos,        # Novo campo
+                    'total_disponivel': total_disponivel,  # Novo campo
                     'produtos_unicos': resultado.get('produtos_unicos', 0),
                     'cores_unicas': resultado.get('cores_unicas', 0),
                     'arquivos_processados': resultado.get('arquivos_processados', 0)
@@ -1094,33 +1037,132 @@ def list_consolidated_files():
     try:
         files = []
         for filename in os.listdir(CONSOLIDATED_FOLDER):
-            if filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.json'):
+            if filename.endswith('.csv'):
                 filepath = os.path.join(CONSOLIDATED_FOLDER, filename)
                 stats = os.stat(filepath)
                 files.append({
                     'name': filename,
                     'size': stats.st_size,
                     'modified': datetime.fromtimestamp(stats.st_mtime).isoformat(),
-                    'path': f'/download/consolidated/files/{filename}'
+                    'path': f'/download/consolidated/{filename}'
                 })
         
         return jsonify({'files': files})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/files/pdf')
+def list_pdf_files():
+    """Lista arquivos PDF"""
+    try:
+        files = []
+        for filename in os.listdir(PDF_FOLDER):
+            if filename.endswith('.pdf'):
+                filepath = os.path.join(PDF_FOLDER, filename)
+                stats = os.stat(filepath)
+                files.append({
+                    'name': filename,
+                    'size': stats.st_size,
+                    'modified': datetime.fromtimestamp(stats.st_mtime).isoformat(),
+                    'path': f'/download/pdf/{filename}'
+                })
+        
+        return jsonify({'files': files})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+# Adicione esta nova rota para visualizar o resumo:
+@app.route('/api/consolidation/summary/<filename>')
+def get_consolidation_summary(filename):
+    """Retorna o resumo da consolidação em JSON"""
+    try:
+        filepath = os.path.join('data/consolidated', filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                import json
+                data = json.load(f)
+            return jsonify({'success': True, 'data': data})
+        else:
+            return jsonify({'success': False, 'message': 'Arquivo não encontrado'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# CORREÇÃO AQUI: Renomear a segunda rota para evitar conflito
 @app.route('/download/consolidated/files/<filename>')
 def download_consolidated_file(filename):
-    """Baixa arquivo consolidado"""
+    """Baixa arquivo consolidado (CSV, Excel ou JSON) - RENOMEADA"""
     return send_from_directory('data/consolidated', filename, as_attachment=True)
+
 
 @app.route('/download/csv/<filename>')
 def download_csv(filename):
     """Baixa arquivo CSV"""
     return send_from_directory(CSV_FOLDER, filename, as_attachment=True)
 
+@app.route('/download/consolidated/<filename>')
+def download_consolidated(filename):
+    """Baixa arquivo consolidado CSV"""
+    return send_from_directory(CONSOLIDATED_FOLDER, filename, as_attachment=True)
+
+@app.route('/download/pdf/<filename>')
+def download_pdf(filename):
+    """Baixa arquivo PDF"""
+    return send_from_directory(PDF_FOLDER, filename, as_attachment=True)
+
+@app.route('/api/debug/csv/<filename>')
+def debug_csv(filename):
+    """Endpoint para debug - mostra conteúdo do CSV"""
+    filepath = os.path.join(CSV_FOLDER, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Arquivo não encontrado'}), 404
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            content = f.read(1000)  # Ler apenas os primeiros 1000 caracteres
+        return jsonify({
+            'filename': filename,
+            'preview': content,
+            'lines': content.split('\n')[:10]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/debug/csv-content/<filename>')
+def debug_csv_content(filename):
+    """Endpoint para debug - mostra conteúdo completo do CSV"""
+    filepath = os.path.join(CSV_FOLDER, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Arquivo não encontrado'}), 404
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            content = f.read()
+        
+        # Analisar estrutura
+        lines = content.split('\n')
+        estrutura = []
+        for i, line in enumerate(lines[:10]):  # Mostrar apenas primeiras 10 linhas
+            if line.strip():
+                parts = line.split(';')
+                estrutura.append({
+                    'linha': i + 1,
+                    'partes': len(parts),
+                    'conteudo': line[:100] + ('...' if len(line) > 100 else '')
+                })
+        
+        return jsonify({
+            'filename': filename,
+            'total_lines': len(lines),
+            'estrutura': estrutura,
+            'preview': content[:1000]  # Primeiros 1000 caracteres
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/test-login', methods=['POST'])
 def test_login():
-    """Testa o login"""
+    """Testa o login com as credenciais fornecidas via .env"""
+    # Agora sempre usa as credenciais do .env
     scraper = DGBScraper(headless=False)
     try:
         success = scraper.login()
@@ -1153,7 +1195,25 @@ def get_products():
     except:
         return jsonify({'produtos': '13,14,15,16,17'})
 
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Retorna as configurações atuais do sistema"""
+    config = {
+        'usuario': DGB_USUARIO,
+        'url_login': DGB_URL_LOGIN,
+        'url_estoque': DGB_URL_ESTOQUE,
+        'diretorios': {
+            'csv': CSV_FOLDER,
+            'pdf': PDF_FOLDER,
+            'logs': LOG_FOLDER,
+            'screenshots': SCREENSHOT_FOLDER,
+            'consolidados': CONSOLIDATED_FOLDER
+        }
+    }
+    return jsonify(config)
+
 if __name__ == '__main__':
+    # Verificar se o arquivo .env existe, se não, criar com valores padrão
     if not os.path.exists('.env'):
         with open('.env', 'w') as f:
             f.write(f'''# Configurações DGB COMEX
@@ -1164,27 +1224,32 @@ DGB_URL_ESTOQUE=http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf
 FLASK_SECRET_KEY=dgb-comex-scraper-secret-2024
 
 # Configurações do Scraping
-SCRAPING_DELAY=3
+SCRAPING_DELAY=2
 SCRAPING_TIMEOUT=30
 SCRAPING_HEADLESS=False
 ''')
         logger.info("Arquivo .env criado com configurações padrão")
     
+    # Recarregar variáveis de ambiente
     load_dotenv()
     
+    # Atualizar variáveis com valores do .env
     DGB_USUARIO = os.getenv('DGB_USUARIO', 'tiago')
     DGB_SENHA = os.getenv('DGB_SENHA', 'Esmeralda852456#&')
     DGB_URL_LOGIN = os.getenv('DGB_URL_LOGIN', 'http://sistemadgb.4pu.com:90/dgb/login.jsf')
     DGB_URL_ESTOQUE = os.getenv('DGB_URL_ESTOQUE', 'http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf')
     
+    # Criar arquivo de produtos padrão se não existir
     if not os.path.exists('produtos.txt'):
         with open('produtos.txt', 'w') as f:
             f.write('13,14,15,16,17')
     
+    # Criar diretórios de templates e static
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static/css', exist_ok=True)
     os.makedirs('static/js', exist_ok=True)
     
-    logger.info(f"Configurações carregadas. Sistema pronto.")
+    # Log das configurações carregadas
+    logger.info(f"Configurações carregadas: Usuário={DGB_USUARIO}, URL Login={DGB_URL_LOGIN}, URL Estoque={DGB_URL_ESTOQUE}")
     
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
