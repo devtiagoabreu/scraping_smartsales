@@ -1,6 +1,7 @@
-# scraper.py - Lógica principal de scraping
+# scraper.py - ATUALIZADO para salvar CSVs automaticamente
 import os
 import time
+import csv
 import logging
 from datetime import datetime
 from selenium import webdriver
@@ -10,6 +11,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from dotenv import load_dotenv
+
+# Importar parser
+import parser_dgb
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -65,6 +69,7 @@ class DGBScraper:
             login_button.click()
             time.sleep(5)
             
+            logger.info("Login realizado com sucesso!")
             return True
             
         except Exception as e:
@@ -74,19 +79,33 @@ class DGBScraper:
     def navigate_to_stock(self):
         """Navega para página de estoque"""
         try:
+            logger.info("Navegando para página de estoque...")
             self.driver.get(self.url_estoque)
             time.sleep(5)
             
             # Verificar se carregou
-            return "estoquePrevisaoConsulta" in self.driver.current_url
-            
+            if "estoquePrevisaoConsulta" in self.driver.current_url:
+                logger.info("Página de estoque carregada com sucesso!")
+                return True
+            else:
+                # Tentar encontrar campo de produto
+                try:
+                    self.driver.find_element(By.ID, "produto")
+                    logger.info("Campo 'produto' encontrado")
+                    return True
+                except:
+                    logger.error("Não conseguiu carregar página de estoque")
+                    return False
+                
         except Exception as e:
             logger.error(f"Erro ao navegar para estoque: {e}")
             return False
     
     def search_product(self, codigo, situacao="TINTO"):
-        """Pesquisa um produto específico"""
+        """Pesquisa um produto específico e retorna HTML"""
         try:
+            logger.info(f"Pesquisando produto {codigo}...")
+            
             # Preencher produto
             produto_field = self.driver.find_element(By.ID, "produto")
             produto_field.clear()
@@ -121,13 +140,46 @@ class DGBScraper:
                 'error': str(e)
             }
     
+    def create_csv_from_html(self, html_content, produto_codigo):
+        """Cria CSV a partir do HTML"""
+        try:
+            # Parsear HTML
+            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+            
+            if not registros:
+                logger.warning(f"Nenhum registro extraído para {produto_codigo}")
+                return None
+            
+            # Criar pasta csv se não existir
+            os.makedirs('csv', exist_ok=True)
+            
+            # Nome do arquivo
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"produto_{produto_codigo}_{timestamp}.csv"
+            filepath = os.path.join('csv', filename)
+            
+            # Escrever CSV
+            with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+                writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                               'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+                writer.writerows(registros)
+            
+            logger.info(f"CSV criado: {filename} ({len(registros)} registros)")
+            return filename
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar CSV para {produto_codigo}: {e}")
+            return None
+    
     def close(self):
         """Fecha o navegador"""
         if self.driver:
             self.driver.quit()
+            logger.info("Navegador fechado")
 
 def run_scraping_thread(status_dict):
-    """Função executada na thread"""
+    """Função executada na thread - ATUALIZADA para salvar CSVs"""
     scraper = None
     
     try:
@@ -137,21 +189,26 @@ def run_scraping_thread(status_dict):
         
         status_dict['total'] = len(produtos)
         status_dict['message'] = f'Processando {len(produtos)} produtos'
+        status_dict['csv_files'] = []  # Lista de CSVs criados
         
         # Iniciar scraper
         scraper = DGBScraper(headless=False)
         
         # Login
+        status_dict['message'] = 'Realizando login...'
         if not scraper.login():
             status_dict['message'] = 'Falha no login'
             status_dict['running'] = False
             return
         
         # Navegar para estoque
+        status_dict['message'] = 'Navegando para estoque...'
         if not scraper.navigate_to_stock():
             status_dict['message'] = 'Erro ao acessar estoque'
             status_dict['running'] = False
             return
+        
+        status_dict['message'] = 'Iniciando consultas...'
         
         # Processar cada produto
         for i, produto in enumerate(produtos, 1):
@@ -164,17 +221,33 @@ def run_scraping_thread(status_dict):
             
             # Pesquisar produto
             resultado = scraper.search_product(produto)
+            
+            # Se obteve HTML com sucesso, criar CSV
+            if resultado['success'] and 'html' in resultado:
+                csv_filename = scraper.create_csv_from_html(resultado['html'], produto)
+                if csv_filename:
+                    resultado['csv_file'] = csv_filename
+                    status_dict['csv_files'].append(csv_filename)
+                    logger.info(f"✅ Produto {produto} processado - CSV criado")
+                else:
+                    resultado['success'] = False
+                    resultado['error'] = 'Não foi possível criar CSV'
+                    logger.error(f"❌ Produto {produto}: erro ao criar CSV")
+            
             status_dict['results'].append(resultado)
             
-            if resultado['success']:
-                logger.info(f"✅ Produto {produto} processado")
-            else:
-                logger.error(f"❌ Erro em {produto}: {resultado.get('error')}")
-            
+            # Pequena pausa entre consultas
             time.sleep(2)
         
-        status_dict['message'] = '✅ Scraping concluído!'
+        # Resumo final
+        sucessos = sum(1 for r in status_dict['results'] if r.get('success'))
+        erros = sum(1 for r in status_dict['results'] if not r.get('success'))
+        
+        status_dict['message'] = f'✅ Scraping concluído! {sucessos} sucessos, {erros} erros'
         status_dict['end_time'] = datetime.now().isoformat()
+        
+        logger.info(f"📊 Resumo: {sucessos} sucessos, {erros} erros")
+        logger.info(f"📁 CSVs criados: {len(status_dict['csv_files'])}")
         
     except Exception as e:
         logger.error(f"Erro no scraping: {e}")
