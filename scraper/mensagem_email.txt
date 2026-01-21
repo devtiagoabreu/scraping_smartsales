@@ -1,8 +1,16 @@
 Prezado(a),
 
-Segue em anexo o relatório consolidado de estoque DGB.
+Segue em anexo o relatório consolidado de estoque DGB atualizado.
 
-Este relatório foi gerado automaticamente pelo sistema DGB Scraper.
+Este relatório foi gerado automaticamente pelo sistema DGB COMEX estoque em [DATA].
+
+Dados incluídos:
+- Estoque disponível por produto
+- Pedidos em andamento
+- Previsões de entrega
+- Disponibilidade por cor/variante
+
+Para dúvidas ou mais informações, entre em contato.
 
 Atenciosamente,
-Sistema DGB Scraper
+Sistema DGB COMEX estoque
