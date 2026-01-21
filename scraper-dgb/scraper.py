@@ -269,7 +269,7 @@ def create_csv_from_html(html_content, produto_codigo):
         return None
 
 def run_scraping_thread(status_dict):
-    """Função executada na thread - ATUALIZADA para salvar CSVs"""
+    """Função executada na thread - ATUALIZADA para salvar CSVs e HTML de debug"""
     scraper = None
     
     try:
@@ -311,6 +311,14 @@ def run_scraping_thread(status_dict):
             
             # Pesquisar produto
             resultado = scraper.search_product(produto)
+
+             # SALVAR HTML PARA DEBUG
+            if resultado['success'] and 'html' in resultado:
+                # Salvar HTML para análise
+                scraper.save_html_for_debug(resultado['html'], produto)
+                
+                # Criar CSV
+                csv_filename = scraper.create_csv_from_html(resultado['html'], produto)
             
             # Se obteve HTML com sucesso, criar CSV
             if resultado['success'] and 'html' in resultado:
