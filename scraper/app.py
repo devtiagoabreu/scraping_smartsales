@@ -1,4 +1,4 @@
-# app.py - ATUALIZADO com funcionalidade completa e debug
+# app.py - ATUALIZADO com funcionalidade completa
 import os
 import json
 import threading
@@ -7,6 +7,12 @@ from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+import mimetypes
 
 # Import dos módulos
 import scraper
@@ -31,9 +37,11 @@ logger = logging.getLogger(__name__)
 CSV_FOLDER = 'csv'
 DEBUG_FOLDER = 'debug'
 PDF_FOLDER = 'pdfs'
+IMAGE_FOLDER = 'images'
 os.makedirs(CSV_FOLDER, exist_ok=True)
 os.makedirs(DEBUG_FOLDER, exist_ok=True)
 os.makedirs(PDF_FOLDER, exist_ok=True)
+os.makedirs(IMAGE_FOLDER, exist_ok=True)
 
 # Status global
 scraping_status = {
@@ -211,7 +219,8 @@ def generate_pdfs():
             return jsonify({
                 'success': True,
                 'message': resultado['message'],
-                'pdf_files': resultado['pdf_files']
+                'pdf_files': resultado.get('pdf_files', []),
+                'image_files': resultado.get('image_files', [])
             })
         else:
             return jsonify({'success': False, 'error': resultado['error']})
@@ -227,39 +236,49 @@ def clean_data():
         clean_csv = data.get('clean_csv', True)
         clean_debug = data.get('clean_debug', True)
         clean_pdfs = data.get('clean_pdfs', True)
+        clean_images = data.get('clean_images', True)
         
         files_deleted = []
-        folders_cleaned = []
         
         # Limpar CSV
         if clean_csv and os.path.exists(CSV_FOLDER):
-            csv_files = [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]
-            for file in csv_files:
-                try:
-                    os.remove(os.path.join(CSV_FOLDER, file))
-                    files_deleted.append(f"csv/{file}")
-                except:
-                    pass
+            for file in os.listdir(CSV_FOLDER):
+                if file.endswith('.csv'):
+                    try:
+                        os.remove(os.path.join(CSV_FOLDER, file))
+                        files_deleted.append(f"csv/{file}")
+                    except:
+                        pass
         
         # Limpar debug
         if clean_debug and os.path.exists(DEBUG_FOLDER):
-            debug_files = [f for f in os.listdir(DEBUG_FOLDER) if f.endswith('.html')]
-            for file in debug_files:
-                try:
-                    os.remove(os.path.join(DEBUG_FOLDER, file))
-                    files_deleted.append(f"debug/{file}")
-                except:
-                    pass
+            for file in os.listdir(DEBUG_FOLDER):
+                if file.endswith('.html'):
+                    try:
+                        os.remove(os.path.join(DEBUG_FOLDER, file))
+                        files_deleted.append(f"debug/{file}")
+                    except:
+                        pass
         
         # Limpar PDFs
         if clean_pdfs and os.path.exists(PDF_FOLDER):
-            pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith('.pdf')]
-            for file in pdf_files:
-                try:
-                    os.remove(os.path.join(PDF_FOLDER, file))
-                    files_deleted.append(f"pdfs/{file}")
-                except:
-                    pass
+            for file in os.listdir(PDF_FOLDER):
+                if file.endswith('.pdf'):
+                    try:
+                        os.remove(os.path.join(PDF_FOLDER, file))
+                        files_deleted.append(f"pdfs/{file}")
+                    except:
+                        pass
+        
+        # Limpar imagens
+        if clean_images and os.path.exists(IMAGE_FOLDER):
+            for file in os.listdir(IMAGE_FOLDER):
+                if file.endswith(('.jpg', '.jpeg', '.png')):
+                    try:
+                        os.remove(os.path.join(IMAGE_FOLDER, file))
+                        files_deleted.append(f"images/{file}")
+                    except:
+                        pass
         
         # Resetar status
         scraping_status['results'] = []
@@ -273,6 +292,158 @@ def clean_data():
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/send-email', methods=['POST'])
+def send_email():
+    """Envia email com relatório PDF"""
+    try:
+        # Verificar se há PDF disponível
+        pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.startswith('relatorio_todos_produtos_')]
+        
+        if not pdf_files:
+            return jsonify({'success': False, 'error': 'Nenhum relatório PDF encontrado. Gere os PDFs primeiro.'})
+        
+        # Encontrar o último PDF
+        pdf_files.sort(reverse=True)
+        latest_pdf = os.path.join(PDF_FOLDER, pdf_files[0])
+        
+        # Carregar lista de contatos
+        try:
+            with open('contatos.txt', 'r') as f:
+                contacts_content = f.read().strip()
+            contacts = [c.strip() for c in contacts_content.split(';') if c.strip()]
+        except:
+            contacts = []
+        
+        if not contacts:
+            return jsonify({'success': False, 'error': 'Nenhum contato encontrado. Adicione emails em contatos.txt'})
+        
+        # Carregar mensagem do email
+        try:
+            with open('mensagem_email.txt', 'r', encoding='utf-8') as f:
+                email_message = f.read()
+        except:
+            email_message = """Prezado(a),
+
+Segue em anexo o relatório consolidado de estoque DGB.
+
+Este relatório foi gerado automaticamente pelo sistema DGB Scraper.
+
+Atenciosamente,
+Sistema DGB Scraper"""
+        
+        # Configurações do email
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', 587))
+        smtp_username = os.getenv('SMTP_USERNAME')
+        smtp_password = os.getenv('SMTP_PASSWORD')
+        email_from = os.getenv('EMAIL_FROM', smtp_username)
+        
+        if not smtp_username or not smtp_password:
+            return jsonify({'success': False, 'error': 'Configurações de email não encontradas no .env'})
+        
+        # Enviar email para cada contato
+        emails_sent = []
+        emails_failed = []
+        
+        for contact in contacts:
+            try:
+                # Criar mensagem
+                msg = MIMEMultipart()
+                msg['From'] = email_from
+                msg['To'] = contact
+                msg['Subject'] = f'Relatório de Estoque DGB - {datetime.now().strftime("%d/%m/%Y")}'
+                
+                # Corpo do email
+                msg.attach(MIMEText(email_message, 'plain', 'utf-8'))
+                
+                # Anexar PDF
+                with open(latest_pdf, 'rb') as f:
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(f.read())
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', 
+                                  f'attachment; filename="{os.path.basename(latest_pdf)}"')
+                    msg.attach(part)
+                
+                # Enviar email
+                with smtplib.SMTP(smtp_server, smtp_port) as server:
+                    server.starttls()
+                    server.login(smtp_username, smtp_password)
+                    server.send_message(msg)
+                
+                emails_sent.append(contact)
+                logger.info(f'Email enviado para: {contact}')
+                
+            except Exception as e:
+                emails_failed.append({'email': contact, 'error': str(e)})
+                logger.error(f'Erro ao enviar email para {contact}: {e}')
+        
+        return jsonify({
+            'success': True,
+            'message': f'Emails enviados: {len(emails_sent)} sucesso, {len(emails_failed)} falhas',
+            'emails_sent': emails_sent,
+            'emails_failed': emails_failed,
+            'pdf_file': os.path.basename(latest_pdf)
+        })
+        
+    except Exception as e:
+        logger.error(f'Erro no envio de email: {e}')
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/email-contacts', methods=['GET', 'POST'])
+def manage_email_contacts():
+    """Gerencia lista de contatos de email"""
+    if request.method == 'GET':
+        try:
+            with open('contatos.txt', 'r', encoding='utf-8') as f:
+                contatos = f.read().strip()
+            return jsonify({'contatos': contatos})
+        except:
+            return jsonify({'contatos': 'email1@exemplo.com;email2@exemplo.com'})
+    
+    else:  # POST
+        try:
+            data = request.json
+            contatos = data.get('contatos', '')
+            
+            with open('contatos.txt', 'w', encoding='utf-8') as f:
+                f.write(contatos)
+            
+            return jsonify({'success': True, 'message': 'Lista de contatos salva'})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/email-message', methods=['GET', 'POST'])
+def manage_email_message():
+    """Gerencia mensagem do email"""
+    if request.method == 'GET':
+        try:
+            with open('mensagem_email.txt', 'r', encoding='utf-8') as f:
+                mensagem = f.read()
+            return jsonify({'mensagem': mensagem})
+        except:
+            default_msg = """Prezado(a),
+
+Segue em anexo o relatório consolidado de estoque DGB.
+
+Este relatório foi gerado automaticamente pelo sistema DGB Scraper.
+
+Atenciosamente,
+Sistema DGB Scraper"""
+            return jsonify({'mensagem': default_msg})
+    
+    else:  # POST
+        try:
+            data = request.json
+            mensagem = data.get('mensagem', '')
+            
+            with open('mensagem_email.txt', 'w', encoding='utf-8') as f:
+                f.write(mensagem)
+            
+            return jsonify({'success': True, 'message': 'Mensagem do email salva'})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/download/csv/<filename>')
 def download_csv(filename):
@@ -290,9 +461,17 @@ def download_pdf(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 404
 
+@app.route('/api/download/image/<filename>')
+def download_image(filename):
+    """Baixa arquivo de imagem"""
+    try:
+        return send_file(os.path.join(IMAGE_FOLDER, filename), as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
+
 @app.route('/api/files')
 def list_files():
-    """Lista arquivos CSV e PDF"""
+    """Lista arquivos CSV, PDF e imagens"""
     try:
         files = []
         
@@ -316,6 +495,17 @@ def list_files():
                     'type': 'pdf',
                     'size': os.path.getsize(filepath),
                     'url': f'/api/download/pdf/{file}'
+                })
+        
+        # Image files
+        for file in os.listdir(IMAGE_FOLDER):
+            if file.endswith(('.jpg', '.jpeg', '.png')):
+                filepath = os.path.join(IMAGE_FOLDER, file)
+                files.append({
+                    'name': file,
+                    'type': 'image',
+                    'size': os.path.getsize(filepath),
+                    'url': f'/api/download/image/{file}'
                 })
         
         return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
@@ -450,6 +640,7 @@ def get_dashboard():
         # Contar arquivos
         csv_files = [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]
         pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith('.pdf')]
+        image_files = [f for f in os.listdir(IMAGE_FOLDER) if f.endswith(('.jpg', '.jpeg', '.png'))]
         
         # Último scraping
         last_scraping = {
@@ -464,6 +655,7 @@ def get_dashboard():
             'success': True,
             'csv_files_count': len(csv_files),
             'pdf_files_count': len(pdf_files),
+            'image_files_count': len(image_files),
             'last_scraping': last_scraping,
             'is_running': scraping_status['running']
         })
@@ -528,11 +720,29 @@ if __name__ == '__main__':
     os.makedirs('csv', exist_ok=True)
     os.makedirs('debug', exist_ok=True)
     os.makedirs('pdfs', exist_ok=True)
+    os.makedirs('images', exist_ok=True)
+    
+    # Criar arquivos padrão se não existirem
+    if not os.path.exists('contatos.txt'):
+        with open('contatos.txt', 'w', encoding='utf-8') as f:
+            f.write('hello@tiagoabreu.deb;tecnolocia.adm@promodatextil.ind.br')
+    
+    if not os.path.exists('mensagem_email.txt'):
+        with open('mensagem_email.txt', 'w', encoding='utf-8') as f:
+            f.write("""Prezado(a),
+
+Segue em anexo o relatório consolidado de estoque DGB.
+
+Este relatório foi gerado automaticamente pelo sistema DGB Scraper.
+
+Atenciosamente,
+Sistema DGB Scraper""")
     
     logger.info("✅ Sistema iniciado com sucesso!")
     logger.info(f"👤 Usuário: {os.getenv('DGB_USUARIO')}")
     logger.info(f"📁 Pasta CSV: {os.path.abspath('csv')}")
     logger.info(f"🐛 Pasta Debug: {os.path.abspath('debug')}")
     logger.info(f"📄 Pasta PDFs: {os.path.abspath('pdfs')}")
+    logger.info(f"🖼️  Pasta Images: {os.path.abspath('images')}")
     
     app.run(host='0.0.0.0', port=5000, debug=True)
