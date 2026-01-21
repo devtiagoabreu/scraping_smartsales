@@ -1,4 +1,4 @@
-# pdf_generator.py - Geração de PDFs e imagens
+# pdf_generator.py - Geração de PDFs e imagens - CORRIGIDO
 import os
 import pandas as pd
 from datetime import datetime
@@ -14,6 +14,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
+import csv
 
 logger = logging.getLogger(__name__)
 
@@ -24,23 +25,14 @@ def generate_pdf_report(csv_file_path):
         if not os.path.exists(csv_file_path):
             return {'success': False, 'error': 'Arquivo CSV não encontrado'}
         
-        # Tentar diferentes encodings
-        encodings = ['utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
-        df = None
-        
-        for encoding in encodings:
-            try:
-                df = pd.read_csv(csv_file_path, delimiter=';', encoding=encoding)
-                logger.info(f"CSV lido com encoding: {encoding}")
-                break
-            except UnicodeDecodeError:
-                continue
-            except Exception as e:
-                logger.warning(f"Erro com encoding {encoding}: {e}")
-                continue
+        # Ler CSV com tratamento de erros
+        df = read_csv_with_error_handling(csv_file_path)
         
         if df is None or df.empty:
             return {'success': False, 'error': 'Não foi possível ler o CSV ou está vazio'}
+        
+        # Limpar e preparar dados
+        df = clean_and_prepare_data(df)
         
         # Extrair informações básicas
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -77,6 +69,9 @@ def generate_pdf_report(csv_file_path):
             try:
                 # Filtrar dados do produto
                 df_produto = df[df['codigo_produto'] == produto].copy()
+                
+                if len(df_produto) == 0:
+                    continue
                 
                 # Gerar PDF para o produto
                 produto_pdf_filename = f"relatorio_produto_{produto}_{timestamp}.pdf"
@@ -123,6 +118,154 @@ def generate_pdf_report(csv_file_path):
         logger.error(traceback.format_exc())
         return {'success': False, 'error': str(e)}
 
+def read_csv_with_error_handling(csv_file_path):
+    """Lê CSV com tratamento robusto de erros"""
+    try:
+        # Tentar diferentes encodings
+        encodings = ['utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1', 'utf-8']
+        
+        for encoding in encodings:
+            try:
+                logger.info(f"Tentando ler CSV com encoding: {encoding}")
+                
+                # Tentar ler normalmente primeiro
+                try:
+                    df = pd.read_csv(csv_file_path, delimiter=';', encoding=encoding, on_bad_lines='warn')
+                    if not df.empty:
+                        logger.info(f"CSV lido com sucesso usando encoding: {encoding}")
+                        return df
+                except Exception as e:
+                    logger.warning(f"Falha ao ler com pandas: {e}")
+                
+                # Se falhar, tentar leitura manual
+                try:
+                    data = []
+                    with open(csv_file_path, 'r', encoding=encoding) as f:
+                        # Ler o arquivo linha por linha
+                        lines = f.readlines()
+                        
+                        if not lines:
+                            continue
+                        
+                        # Tentar detectar o delimitador
+                        first_line = lines[0]
+                        delimiter = ';' if ';' in first_line else ','
+                        
+                        # Ler todas as linhas
+                        for i, line in enumerate(lines):
+                            try:
+                                # Limpar a linha
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                    
+                                # Dividir pelo delimitador
+                                parts = line.split(delimiter)
+                                
+                                # Se for a primeira linha (cabeçalho)
+                                if i == 0:
+                                    headers = parts
+                                else:
+                                    # Garantir que temos o mesmo número de colunas que o cabeçalho
+                                    if len(parts) != len(headers):
+                                        # Tentar correção se houver citação
+                                        if '"' in line:
+                                            # Usar csv.reader para lidar com campos citados
+                                            f.seek(0)
+                                            csv_reader = csv.reader(f, delimiter=delimiter)
+                                            headers = next(csv_reader)
+                                            data = []
+                                            for row in csv_reader:
+                                                if len(row) == len(headers):
+                                                    data.append(row)
+                                            df = pd.DataFrame(data, columns=headers)
+                                            return df
+                                        else:
+                                            # Preencher ou truncar para corresponder ao cabeçalho
+                                            if len(parts) > len(headers):
+                                                parts = parts[:len(headers)]
+                                            else:
+                                                while len(parts) < len(headers):
+                                                    parts.append('')
+                                    data.append(parts)
+                                    
+                            except Exception as line_error:
+                                logger.warning(f"Erro na linha {i+1}: {line_error}")
+                                continue
+                    
+                    if headers and data:
+                        df = pd.DataFrame(data, columns=headers)
+                        logger.info(f"CSV lido manualmente com {len(df)} registros")
+                        return df
+                        
+                except Exception as manual_error:
+                    logger.warning(f"Falha na leitura manual: {manual_error}")
+                    continue
+                    
+            except Exception as encoding_error:
+                logger.warning(f"Erro com encoding {encoding}: {encoding_error}")
+                continue
+        
+        # Última tentativa: usar engine python com sep=None (detecção automática)
+        try:
+            df = pd.read_csv(csv_file_path, sep=None, engine='python', encoding='latin-1')
+            if not df.empty:
+                logger.info("CSV lido com detecção automática de separador")
+                return df
+        except Exception as e:
+            logger.error(f"Falha na detecção automática: {e}")
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Erro crítico na leitura do CSV: {e}")
+        return None
+
+def clean_and_prepare_data(df):
+    """Limpa e prepara os dados do DataFrame"""
+    try:
+        # Remover linhas totalmente vazias
+        df = df.dropna(how='all')
+        
+        # Remover colunas totalmente vazias
+        df = df.dropna(axis=1, how='all')
+        
+        # Renomear colunas para nomes padrão se necessário
+        expected_columns = ['Produto / Cor', 'Previsão', 'Estoque', 'Pedidos', 'Disponível']
+        
+        # Tentar encontrar colunas correspondentes
+        column_mapping = {}
+        for expected in expected_columns:
+            for actual in df.columns:
+                if expected.lower() in actual.lower():
+                    column_mapping[actual] = expected
+                    break
+        
+        # Renomear colunas se encontradas
+        if column_mapping:
+            df = df.rename(columns=column_mapping)
+        
+        # Garantir que temos as colunas necessárias
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            for col in missing_columns:
+                df[col] = ''
+        
+        # Preencher valores NaN
+        df = df.fillna('')
+        
+        # Converter tipos de dados
+        for col in ['Estoque', 'Pedidos', 'Disponível']:
+            if col in df.columns:
+                # Tentar converter para string primeiro
+                df[col] = df[col].astype(str)
+        
+        return df
+        
+    except Exception as e:
+        logger.error(f"Erro na limpeza de dados: {e}")
+        return df
+
 def generate_product_images(df, timestamp):
     """Gera imagens JPG para cada produto com gráficos"""
     images_created = []
@@ -137,10 +280,23 @@ def generate_product_images(df, timestamp):
                 # Filtrar dados do produto
                 df_produto = df[df['codigo_produto'] == produto].copy()
                 
+                if len(df_produto) == 0:
+                    continue
+                
                 # Converter valores para numérico
-                df_produto['Estoque_num'] = df_produto['Estoque'].apply(converter_valor_brasileiro)
-                df_produto['Pedidos_num'] = df_produto['Pedidos'].apply(converter_valor_brasileiro)
-                df_produto['Disponível_num'] = df_produto['Disponível'].apply(converter_valor_brasileiro)
+                try:
+                    df_produto['Estoque_num'] = df_produto['Estoque'].apply(converter_valor_brasileiro)
+                    df_produto['Pedidos_num'] = df_produto['Pedidos'].apply(converter_valor_brasileiro)
+                    df_produto['Disponível_num'] = df_produto['Disponível'].apply(converter_valor_brasileiro)
+                except:
+                    # Se não conseguir converter, usar zeros
+                    df_produto['Estoque_num'] = 0
+                    df_produto['Pedidos_num'] = 0
+                    df_produto['Disponível_num'] = 0
+                
+                # Verificar se temos dados válidos
+                if df_produto['Estoque_num'].sum() == 0 and df_produto['Pedidos_num'].sum() == 0:
+                    continue
                 
                 # Criar figura com subplots
                 fig, axes = plt.subplots(1, 2, figsize=(12, 6))
@@ -157,7 +313,10 @@ def generate_product_images(df, timestamp):
                         # Extrair cor da descrição
                         desc = str(row['Produto / Cor'])
                         if 'COR:' in desc:
-                            cor = desc.split('COR:')[-1].split('-')[0].strip()[:20]
+                            try:
+                                cor = desc.split('COR:')[-1].split('-')[0].strip()[:20]
+                            except:
+                                cor = f"Var{i+1}"
                         else:
                             cor = f"Var{i+1}"
                         variantes.append(cor)
@@ -183,27 +342,31 @@ def generate_product_images(df, timestamp):
                 
                 # Gráfico 2: Pizza de distribuição
                 if len(df_produto) > 0:
-                    total_estoque = df_produto['Estoque_num'].sum()
-                    total_pedidos = df_produto['Pedidos_num'].sum()
-                    total_disponivel = df_produto['Disponível_num'].sum()
-                    
-                    sizes = [total_estoque, total_pedidos, total_disponivel]
-                    labels = ['Estoque', 'Pedidos', 'Disponível']
-                    colors_pie = ['#ff9999', '#66b3ff', '#99ff99']
-                    
-                    # Remover zeros
-                    valid_data = [(s, l, c) for s, l, c in zip(sizes, labels, colors_pie) if s > 0]
-                    
-                    if valid_data:
-                        sizes_filt = [d[0] for d in valid_data]
-                        labels_filt = [d[1] for d in valid_data]
-                        colors_filt = [d[2] for d in valid_data]
+                    try:
+                        total_estoque = df_produto['Estoque_num'].sum()
+                        total_pedidos = df_produto['Pedidos_num'].sum()
+                        total_disponivel = df_produto['Disponível_num'].sum()
                         
-                        axes[1].pie(sizes_filt, labels=labels_filt, colors=colors_filt, autopct='%1.1f%%', startangle=90)
-                        axes[1].axis('equal')
-                        axes[1].set_title('Distribuição Total')
-                    else:
-                        axes[1].text(0.5, 0.5, 'Sem dados', ha='center', va='center', fontsize=12)
+                        sizes = [total_estoque, total_pedidos, total_disponivel]
+                        labels = ['Estoque', 'Pedidos', 'Disponível']
+                        colors_pie = ['#ff9999', '#66b3ff', '#99ff99']
+                        
+                        # Remover zeros
+                        valid_data = [(s, l, c) for s, l, c in zip(sizes, labels, colors_pie) if s > 0]
+                        
+                        if valid_data:
+                            sizes_filt = [d[0] for d in valid_data]
+                            labels_filt = [d[1] for d in valid_data]
+                            colors_filt = [d[2] for d in valid_data]
+                            
+                            axes[1].pie(sizes_filt, labels=labels_filt, colors=colors_filt, autopct='%1.1f%%', startangle=90)
+                            axes[1].axis('equal')
+                            axes[1].set_title('Distribuição Total')
+                        else:
+                            axes[1].text(0.5, 0.5, 'Sem dados', ha='center', va='center', fontsize=12)
+                            axes[1].set_title('Distribuição Total')
+                    except:
+                        axes[1].text(0.5, 0.5, 'Erro nos dados', ha='center', va='center', fontsize=12)
                         axes[1].set_title('Distribuição Total')
                 
                 # Ajustar layout
@@ -239,11 +402,17 @@ def extrair_codigo_produto(descricao):
         if isinstance(descricao, str):
             # Exemplo: "000014 - VELUDO CONFORT - COR: 5 - BLACK"
             partes = descricao.split(' - ')
-            return partes[0] if len(partes) > 0 else descricao
+            if len(partes) > 0:
+                return partes[0].strip()
+            else:
+                return descricao.strip()
         else:
-            return str(descricao)
+            return str(descricao).strip()
     except:
-        return str(descricao)
+        try:
+            return str(descricao).strip()
+        except:
+            return "Desconhecido"
 
 def formatar_data_hora():
     """Formata data e hora para o relatório"""
@@ -283,7 +452,7 @@ def generate_all_products_pdf(df, output_path, total_registros, timestamp, image
         info_text = f"""
         <b>Data de Geração:</b> {formatar_data_hora()}<br/>
         <b>Total de Registros:</b> {total_registros}<br/>
-        <b>Total de Produtos:</b> {len(df['codigo_produto'].unique())}<br/>
+        <b>Total de Produtos:</b> {len(df['codigo_produto'].unique()) if 'codigo_produto' in df.columns else 'N/A'}<br/>
         <b>Arquivo Fonte:</b> consolidado_organizado_{timestamp}.csv
         """
         
@@ -323,13 +492,11 @@ def generate_all_products_pdf(df, output_path, total_registros, timestamp, image
         # Dados
         for _, row in df_table.iterrows():
             # Truncar descrição se muito longa
-            produto_desc = str(row['Produto / Cor'])
-            if len(produto_desc) > 50:
-                produto_desc = produto_desc[:47] + "..."
+            produto_desc = str(row['Produto / Cor'])[:50]
             
             table_data.append([
                 produto_desc,
-                str(row['Previsão']),
+                str(row['Previsão'])[:20],
                 str(row['Estoque']),
                 str(row['Pedidos']),
                 str(row['Disponível'])
@@ -368,13 +535,15 @@ def generate_all_products_pdf(df, output_path, total_registros, timestamp, image
         story.append(Spacer(1, 10))
         
         try:
-            df['Estoque_num'] = df['Estoque'].apply(converter_valor_brasileiro)
-            df['Pedidos_num'] = df['Pedidos'].apply(converter_valor_brasileiro)
-            df['Disponível_num'] = df['Disponível'].apply(converter_valor_brasileiro)
+            # Tentar calcular estatísticas
+            total_estoque = 0
+            total_pedidos = 0
+            total_disponivel = 0
             
-            total_estoque = df['Estoque_num'].sum()
-            total_pedidos = df['Pedidos_num'].sum()
-            total_disponivel = df['Disponível_num'].sum()
+            for _, row in df.iterrows():
+                total_estoque += converter_valor_brasileiro(row['Estoque'])
+                total_pedidos += converter_valor_brasileiro(row['Pedidos'])
+                total_disponivel += converter_valor_brasileiro(row['Disponível'])
             
             stats_text = f"""
             <b>Estoque Total:</b> {formatar_valor_brasileiro(total_estoque)}<br/>
@@ -383,8 +552,8 @@ def generate_all_products_pdf(df, output_path, total_registros, timestamp, image
             """
             
             story.append(Paragraph(stats_text, styles['Normal']))
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Erro ao calcular estatísticas: {e}")
         
         # Rodapé
         story.append(Spacer(1, 30))
@@ -451,14 +620,15 @@ def generate_single_product_pdf(df_produto, output_path, produto_codigo, timesta
         
         # Resumo estatístico
         try:
-            # Converter valores para numérico para cálculos
-            df_produto['Estoque_num'] = df_produto['Estoque'].apply(converter_valor_brasileiro)
-            df_produto['Pedidos_num'] = df_produto['Pedidos'].apply(converter_valor_brasileiro)
-            df_produto['Disponível_num'] = df_produto['Disponível'].apply(converter_valor_brasileiro)
+            # Tentar calcular totais
+            total_estoque = 0
+            total_pedidos = 0
+            total_disponivel = 0
             
-            total_estoque = df_produto['Estoque_num'].sum()
-            total_pedidos = df_produto['Pedidos_num'].sum()
-            total_disponivel = df_produto['Disponível_num'].sum()
+            for _, row in df_produto.iterrows():
+                total_estoque += converter_valor_brasileiro(row['Estoque'])
+                total_pedidos += converter_valor_brasileiro(row['Pedidos'])
+                total_disponivel += converter_valor_brasileiro(row['Disponível'])
             
             summary_text = f"""
             <b>RESUMO ESTATÍSTICO:</b><br/>
@@ -474,57 +644,62 @@ def generate_single_product_pdf(df_produto, output_path, produto_codigo, timesta
             logger.warning(f"Erro ao calcular estatísticas para produto {produto_codigo}: {e}")
         
         # Tabela de dados
-        table_data = []
-        
-        # Cabeçalho
-        headers = ['Produto / Cor', 'Previsão', 'Estoque', 'Pedidos', 'Disponível']
-        table_data.append(headers)
-        
-        # Dados
-        for _, row in df_produto.iterrows():
-            table_data.append([
-                str(row['Produto / Cor']),
-                str(row['Previsão']),
-                str(row['Estoque']),
-                str(row['Pedidos']),
-                str(row['Disponível'])
-            ])
-        
-        # Criar tabela
-        table = Table(table_data, colWidths=[200, 80, 60, 60, 60])
-        
-        # Estilo da tabela
-        table.setStyle(TableStyle([
-            # Cabeçalho
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        if len(df_produto) > 0:
+            table_data = []
             
-            # Linhas alternadas
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F2F2F2')]),
-        ]))
-        
-        story.append(table)
+            # Cabeçalho
+            headers = ['Produto / Cor', 'Previsão', 'Estoque', 'Pedidos', 'Disponível']
+            table_data.append(headers)
+            
+            # Dados
+            for _, row in df_produto.iterrows():
+                table_data.append([
+                    str(row['Produto / Cor'])[:100],
+                    str(row['Previsão'])[:20],
+                    str(row['Estoque']),
+                    str(row['Pedidos']),
+                    str(row['Disponível'])
+                ])
+            
+            # Criar tabela
+            table = Table(table_data, colWidths=[200, 80, 60, 60, 60])
+            
+            # Estilo da tabela
+            table.setStyle(TableStyle([
+                # Cabeçalho
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                
+                # Linhas alternadas
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+                ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F2F2F2')]),
+            ]))
+            
+            story.append(table)
         
         # Informações de cores/variantes
         story.append(Spacer(1, 30))
         
-        if 'Produto / Cor' in df_produto.columns:
+        if 'Produto / Cor' in df_produto.columns and len(df_produto) > 0:
             colors_info = []
             for desc in df_produto['Produto / Cor']:
                 # Extrair informação de cor
-                if 'COR:' in str(desc):
-                    color_part = str(desc).split('COR:')[-1].strip()
-                    colors_info.append(color_part)
+                desc_str = str(desc)
+                if 'COR:' in desc_str:
+                    try:
+                        color_part = desc_str.split('COR:')[-1].strip()
+                        colors_info.append(color_part[:50])
+                    except:
+                        pass
             
             if colors_info:
                 colors_text = f"<b>Cores/Variantes Disponíveis:</b> {', '.join(colors_info[:5])}"
@@ -590,17 +765,21 @@ def generate_summary_pdf(df, output_path, timestamp, images_created):
         produtos_unicos = df['codigo_produto'].unique()
         
         # Contar previsões
-        previsoes_counts = df['Previsão'].value_counts()
+        try:
+            previsoes_counts = df['Previsão'].value_counts()
+        except:
+            previsoes_counts = pd.Series()
         
         # Calcular totais
         try:
-            df['Estoque_num'] = df['Estoque'].apply(converter_valor_brasileiro)
-            df['Pedidos_num'] = df['Pedidos'].apply(converter_valor_brasileiro)
-            df['Disponível_num'] = df['Disponível'].apply(converter_valor_brasileiro)
+            total_estoque = 0
+            total_pedidos = 0
+            total_disponivel = 0
             
-            total_estoque = df['Estoque_num'].sum()
-            total_pedidos = df['Pedidos_num'].sum()
-            total_disponivel = df['Disponível_num'].sum()
+            for _, row in df.iterrows():
+                total_estoque += converter_valor_brasileiro(row['Estoque'])
+                total_pedidos += converter_valor_brasileiro(row['Pedidos'])
+                total_disponivel += converter_valor_brasileiro(row['Disponível'])
             
         except:
             total_estoque = total_pedidos = total_disponivel = 0
@@ -629,7 +808,9 @@ def generate_summary_pdf(df, output_path, timestamp, images_created):
             produtos_estoque = []
             for produto in produtos_unicos[:10]:
                 df_produto = df[df['codigo_produto'] == produto]
-                estoque_produto = df_produto['Estoque_num'].sum() if 'Estoque_num' in df_produto.columns else 0
+                estoque_produto = 0
+                for _, row in df_produto.iterrows():
+                    estoque_produto += converter_valor_brasileiro(row['Estoque'])
                 produtos_estoque.append((produto, estoque_produto))
             
             # Ordenar por estoque
@@ -660,7 +841,7 @@ def generate_summary_pdf(df, output_path, timestamp, images_created):
             
             table_data = [['Previsão', 'Quantidade']]
             for previsao, count in previsoes_counts.head(10).items():
-                table_data.append([previsao, str(count)])
+                table_data.append([str(previsao)[:30], str(count)])
             
             table = Table(table_data, colWidths=[150, 80])
             table.setStyle(TableStyle([
@@ -698,34 +879,65 @@ def converter_valor_brasileiro(val):
         # Converter string
         val_str = str(val).strip()
         
+        # Se estiver vazio, retornar 0
+        if not val_str:
+            return 0.0
+        
+        # Remover caracteres não numéricos exceto pontos e vírgulas
+        val_str = ''.join(c for c in val_str if c.isdigit() or c in ',.')
+        
+        # Se ainda estiver vazio, retornar 0
+        if not val_str:
+            return 0.0
+        
         # Remover pontos de milhar e substituir vírgula decimal por ponto
         if ',' in val_str and '.' in val_str:
             # Formato brasileiro: 1.234,56
-            val_str = val_str.replace('.', '').replace(',', '.')
+            # Contar quantos pontos há antes da vírgula
+            if val_str.rfind('.') < val_str.rfind(','):
+                # Ponto é separador de milhar, vírgula é decimal
+                val_str = val_str.replace('.', '').replace(',', '.')
+            else:
+                # Vírgula é separador de milhar, ponto é decimal
+                val_str = val_str.replace(',', '')
         elif ',' in val_str:
             # Formato com apenas vírgula como decimal
             val_str = val_str.replace(',', '.')
         
+        # Remover múltiplos pontos
+        if val_str.count('.') > 1:
+            # Manter apenas o último ponto como decimal
+            parts = val_str.split('.')
+            val_str = ''.join(parts[:-1]) + '.' + parts[-1]
+        
         # Tentar converter para float
         return float(val_str)
     except Exception as e:
+        logger.warning(f"Erro ao converter valor '{val}': {e}")
         return 0.0
 
 def formatar_valor_brasileiro(val):
     """Formata valor numérico para formato brasileiro"""
     try:
-        if pd.isna(val):
+        if pd.isna(val) or val == 0:
             return "0,00"
         
         # Arredondar para 2 casas decimais
         val = round(float(val), 2)
         
-        # Formatar com separador de milhar e vírgula decimal
+        # Se for inteiro
         if val.is_integer():
-            return f"{int(val):,}".replace(",", "X").replace(".", ",").replace("X", ".") + ",00"
+            val_int = int(val)
+            # Formatar com separador de milhar
+            val_str = f"{val_int:,}".replace(",", "X").replace(".", ",").replace("X", ".")
+            return f"{val_str},00"
         else:
-            parts = f"{val:,.2f}".split('.')
+            # Formatar com duas casas decimais
+            val_str = f"{val:,.2f}"
+            # Substituir . por , para decimais e , por . para milhares
+            parts = val_str.split('.')
             inteira = parts[0].replace(",", "X").replace(".", ",").replace("X", ".")
             return f"{inteira},{parts[1]}"
     except Exception as e:
+        logger.warning(f"Erro ao formatar valor {val}: {e}")
         return "0,00"
