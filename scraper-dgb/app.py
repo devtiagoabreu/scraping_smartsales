@@ -1,15 +1,16 @@
-# app.py - Sistema Simplificado de Scraping DGB
+# app.py - ATUALIZADO com funcionalidade completa
 import os
 import json
+import threading
 import logging
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Import dos módulos personalizados
-from scraper import DGBScraper, run_scraping_thread
-from consolidator import consolidar_dados_estruturados
+# Import dos módulos
+import scraper
+import consolidator
 import parser_dgb
 
 # Carregar variáveis de ambiente
@@ -27,9 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Pastas
 CSV_FOLDER = 'csv'
-DEBUG_FOLDER = 'debug'
 os.makedirs(CSV_FOLDER, exist_ok=True)
-os.makedirs(DEBUG_FOLDER, exist_ok=True)
 
 # Status global
 scraping_status = {
@@ -39,9 +38,13 @@ scraping_status = {
     'current': '',
     'message': '',
     'results': [],
+    'csv_files': [],
     'start_time': None,
     'end_time': None
 }
+
+# Variável para a thread
+scraper_thread = None
 
 @app.route('/')
 def index():
@@ -56,7 +59,7 @@ def get_status():
 @app.route('/api/start', methods=['POST'])
 def start_scraping():
     """Inicia o scraping"""
-    global scraping_status
+    global scraping_status, scraper_thread
     
     if scraping_status['running']:
         return jsonify({'error': 'Scraping já está em execução'}), 400
@@ -69,15 +72,15 @@ def start_scraping():
         'current': '',
         'message': 'Iniciando...',
         'results': [],
+        'csv_files': [],
         'start_time': datetime.now().isoformat(),
         'end_time': None
     })
     
     # Iniciar thread
-    import threading
-    thread = threading.Thread(target=run_scraping_thread, args=(scraping_status,))
-    thread.daemon = True
-    thread.start()
+    scraper_thread = threading.Thread(target=scraper.run_scraping_thread, args=(scraping_status,))
+    scraper_thread.daemon = True
+    scraper_thread.start()
     
     return jsonify({'success': True, 'message': 'Scraping iniciado'})
 
@@ -92,9 +95,9 @@ def stop_scraping():
 def test_login():
     """Testa as credenciais"""
     try:
-        scraper = DGBScraper(headless=True)
-        success = scraper.login()
-        scraper.close()
+        scraper_instance = scraper.DGBScraper(headless=True)
+        success = scraper_instance.login()
+        scraper_instance.close()
         
         if success:
             return jsonify({'success': True, 'message': 'Login realizado com sucesso!'})
@@ -126,38 +129,41 @@ def manage_products():
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/parse-html', methods=['POST'])
-def parse_html():
-    """Processa HTML e cria CSV"""
+@app.route('/api/create-csvs', methods=['POST'])
+def create_csvs():
+    """Cria CSVs a partir dos resultados do scraping"""
     try:
-        data = request.json
-        html_content = data.get('html', '')
-        produto_codigo = data.get('produto', '')
+        # Verificar se há resultados
+        if not scraping_status['results']:
+            return jsonify({'success': False, 'error': 'Nenhum resultado disponível. Execute o scraping primeiro.'})
         
-        # Parsear HTML
-        registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+        csv_files_created = []
         
-        if not registros:
-            return jsonify({'success': False, 'error': 'Nenhum dado extraído'})
+        for result in scraping_status['results']:
+            if result.get('success') and 'html' in result:
+                produto = result['codigo']
+                html = result['html']
+                
+                # Parsear HTML e criar CSV
+                registros = parser_dgb.parse_html_dgb_simples(html, produto)
+                
+                if registros:
+                    filename = scraper.DGBScraper.create_csv_from_html(None, html, produto)
+                    if filename:
+                        csv_files_created.append({
+                            'produto': produto,
+                            'filename': filename
+                        })
         
-        # Criar CSV
-        filename = f"produto_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        filepath = os.path.join(CSV_FOLDER, filename)
-        
-        import csv
-        with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
-            writer = csv.writer(f, delimiter=';', quotechar='"')
-            writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
-                           'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
-            writer.writerows(registros)
-        
-        return jsonify({
-            'success': True,
-            'filename': filename,
-            'registros': len(registros),
-            'download_url': f'/api/download/csv/{filename}'
-        })
-        
+        if csv_files_created:
+            return jsonify({
+                'success': True,
+                'message': f'Criados {len(csv_files_created)} CSVs',
+                'files': csv_files_created
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Não foi possível criar nenhum CSV'})
+            
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -165,7 +171,7 @@ def parse_html():
 def consolidate():
     """Consolida todos os CSVs"""
     try:
-        resultado, mensagem = consolidar_dados_estruturados()
+        resultado, mensagem = consolidator.consolidar_dados_estruturados()
         
         if resultado:
             return jsonify({
@@ -194,14 +200,41 @@ def list_files():
         files = []
         for file in os.listdir(CSV_FOLDER):
             if file.endswith('.csv'):
+                filepath = os.path.join(CSV_FOLDER, file)
                 files.append({
                     'name': file,
-                    'size': os.path.getsize(os.path.join(CSV_FOLDER, file)),
+                    'size': os.path.getsize(filepath),
                     'url': f'/api/download/csv/{file}'
                 })
         return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
     except Exception as e:
         return jsonify({'files': [], 'error': str(e)})
+
+@app.route('/api/dashboard')
+def get_dashboard():
+    """Retorna dados para o dashboard"""
+    try:
+        # Contar arquivos
+        csv_files = [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]
+        
+        # Último scraping
+        last_scraping = {
+            'start_time': scraping_status.get('start_time'),
+            'end_time': scraping_status.get('end_time'),
+            'total': scraping_status.get('total', 0),
+            'success': sum(1 for r in scraping_status['results'] if r.get('success')),
+            'errors': sum(1 for r in scraping_status['results'] if not r.get('success'))
+        }
+        
+        return jsonify({
+            'success': True,
+            'csv_files_count': len(csv_files),
+            'last_scraping': last_scraping,
+            'is_running': scraping_status['running']
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     # Verificar variáveis de ambiente
@@ -209,7 +242,17 @@ if __name__ == '__main__':
     missing = [var for var in required_vars if not os.getenv(var)]
     
     if missing:
-        logger.error(f"Variáveis faltando: {', '.join(missing)}")
+        logger.error(f"❌ Variáveis faltando: {', '.join(missing)}")
+        logger.info("📝 Crie um arquivo .env com essas variáveis:")
+        for var in missing:
+            logger.info(f"   {var}=seu_valor")
         exit(1)
+    
+    # Criar pasta csv se não existir
+    os.makedirs('csv', exist_ok=True)
+    
+    logger.info("✅ Sistema iniciado com sucesso!")
+    logger.info(f"👤 Usuário: {os.getenv('DGB_USUARIO')}")
+    logger.info(f"📁 Pasta CSV: {os.path.abspath('csv')}")
     
     app.run(host='0.0.0.0', port=5000, debug=True)
