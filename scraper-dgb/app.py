@@ -209,6 +209,30 @@ def list_files():
         return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
     except Exception as e:
         return jsonify({'files': [], 'error': str(e)})
+    
+@app.route('/api/debug/<produto>')
+def debug_produto(produto):
+    """Página de debug para ver HTML"""
+    try:
+        # Carregar o último HTML salvo deste produto
+        debug_files = [f for f in os.listdir('debug') if f.startswith(f'debug_produto_{produto}_')]
+        
+        if debug_files:
+            debug_files.sort(reverse=True)
+            latest = debug_files[0]
+            
+            with open(os.path.join('debug', latest), 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            return render_template('debug.html', 
+                                 produto=produto,
+                                 html_content=html_content,
+                                 filename=latest)
+        else:
+            return "Nenhum arquivo de debug encontrado para este produto"
+    except:
+        return "Erro ao carregar debug"
+    
 
 @app.route('/api/dashboard')
 def get_dashboard():

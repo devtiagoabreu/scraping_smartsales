@@ -1,0 +1,1626 @@
+meu scraper faz tudo menos raspar os dados da página
+
+olha o resultado do scraper:
+
+Logs do Sistema
+[11:46:54] Consolidação concluída: ✅ Consolidação concluída: 10 registros de 10 arquivos
+[11:46:54] Iniciando consolidação...
+[11:46:20] ✅ 29 processado
+[11:46:13] ✅ 28 processado
+[11:46:07] ✅ 27 processado
+[11:45:59] ✅ 24 processado
+[11:45:53] ✅ 23 processado
+[11:45:44] ✅ 20 processado
+[11:45:37] ✅ 19 processado
+[11:45:30] ✅ 15 processado
+[11:45:22] ✅ 14 processado
+[11:45:00] Scraping iniciado com sucesso
+[11:45:00] Iniciando scraping...
+[11:44:52] Produtos carregados
+[11:44:52] Sistema inicializado
+
+mas olha o csv como está ficando:
+produto_14_20260121_114522.csv
+artigo;datahora;Produto / Situação / Cor / Desenho / Variante;Previsão;Estoque;Pedidos;Disponível
+14;2026-01-21 11:45:22;Produto 14 - Nenhum dado extraído;N/A;0,00;0,00;0,00
+
+consolidado_20260121_114654.csv
+artigo;datahora;Produto / Situação / Cor / Desenho / Variante;Previsão;Estoque;Pedidos;Disponível;arquivo_origem
+14;2026-01-21 11:45:22;Produto 14 - Nenhum dado extraído;;0,00;0,00;0,00;produto_14_20260121_114522.csv
+15;2026-01-21 11:45:29;Produto 15 - Nenhum dado extraído;;0,00;0,00;0,00;produto_15_20260121_114529.csv
+19;2026-01-21 11:45:36;Produto 19 - Nenhum dado extraído;;0,00;0,00;0,00;produto_19_20260121_114536.csv
+20;2026-01-21 11:45:44;Produto 20 - Nenhum dado extraído;;0,00;0,00;0,00;produto_20_20260121_114544.csv
+23;2026-01-21 11:45:51;Produto 23 - Nenhum dado extraído;;0,00;0,00;0,00;produto_23_20260121_114551.csv
+24;2026-01-21 11:45:59;Produto 24 - Nenhum dado extraído;;0,00;0,00;0,00;produto_24_20260121_114559.csv
+27;2026-01-21 11:46:06;Produto 27 - Nenhum dado extraído;;0,00;0,00;0,00;produto_27_20260121_114606.csv
+28;2026-01-21 11:46:13;Produto 28 - Nenhum dado extraído;;0,00;0,00;0,00;produto_28_20260121_114613.csv
+29;2026-01-21 11:46:20;Produto 29 - Nenhum dado extraído;;0,00;0,00;0,00;produto_29_20260121_114620.csv
+30;2026-01-21 11:46:28;Produto 30 - Nenhum dado extraído;;0,00;0,00;0,00;produto_30_20260121_114628.csv
+
+
+
+olha o que temos de dados na página da consulta do produto 14 (entrei na página e selecionei os dados e copiei manualmente) -não foi feito pelo scraper, é só para mostrar os dados)
+Consulta de previsão de estoque
+Produto
+14
+Situação
+TINTO
+Cor
+Desenho
+Variante
+Entrega
+21/01/2026
+Disp. Acima de
+0,00
+Layout PDF
+
+Mosaico
+Gerar
+Produto / Situação / Cor / Desenho / Variante
+PrevisãoEstoque Pedidos Disponível
+000014 VELUDO CONFORT
+001 TINTO / 00005 5 - BLACK
+00000 LISO / 00000 Padrao
+Pronta entrega
+8.174,10
+5.234,20
+2.939,90
+09/02/2026
+14.858,20
+0,00
+14.858,20
+16/02/2026
+15.327,70
+4.700,00
+10.627,70
+20/03/2026
+16.000,00
+0,00
+16.000,00
+30/03/2026
+18.777,30
+0,00
+18.777,30
+000014 VELUDO CONFORT
+001 TINTO / 00007 7 - RED
+00000 LISO / 00000 Padrao
+Pronta entrega
+116,40
+0,00
+116,40
+20/03/2026
+1.500,00
+0,00
+1.500,00
+000014 VELUDO CONFORT
+001 TINTO / 00012 12 - IVORY
+00000 LISO / 00000 Padrao
+Pronta entrega
+8.930,00
+100,00
+8.830,00
+16/02/2026
+2.056,10
+0,00
+2.056,10
+20/03/2026
+6.000,00
+0,00
+6.000,00
+000014 VELUDO CONFORT
+001 TINTO / 00013 13 - CHOCOLATE
+00000 LISO / 00000 Padrao
+Pronta entrega
+54.633,50
+100,00
+54.533,50
+09/02/2026
+16.274,90
+1.000,00
+15.274,90
+20/03/2026
+7.000,00
+257,50
+6.742,50
+30/03/2026
+10.320,50
+0,00
+10.320,50
+000014 VELUDO CONFORT
+001 TINTO / 00014 14 - DARK GREY
+00000 LISO / 00000 Padrao
+Pronta entrega
+30.625,00
+2.400,00
+28.225,00
+09/02/2026
+13.007,40
+0,00
+13.007,40
+16/02/2026
+10.664,60
+2.400,00
+8.264,60
+20/03/2026
+10.000,00
+0,00
+10.000,00
+30/03/2026
+15.167,50
+0,00
+15.167,50
+000014 VELUDO CONFORT
+001 TINTO / 00015 15 - ICE
+00000 LISO / 00000 Padrao
+Pronta entrega
+94.723,10
+5.750,00
+88.973,10
+09/02/2026
+20.238,20
+0,00
+20.238,20
+16/02/2026
+11.551,20
+0,00
+11.551,20
+30/03/2026
+10.855,90
+0,00
+10.855,90
+000014 VELUDO CONFORT
+001 TINTO / 00034 34 - MARINHO
+00000 LISO / 00000 Padrao
+Pronta entrega
+0,00
+1.000,00
+-1.000,00
+09/02/2026
+3.076,20
+2.195,20
+881,00
+16/02/2026
+5.678,20
+524,60
+5.153,60
+20/03/2026
+7.000,00
+0,00
+7.000,00
+30/03/2026
+2.975,50
+0,00
+2.975,50
+000014 VELUDO CONFORT
+001 TINTO / 00037 37 - GRANITO
+00000 LISO / 00000 Padrao
+Pronta entrega
+15.784,50
+100,00
+15.684,50
+16/02/2026
+7.969,50
+0,00
+7.969,50
+30/03/2026
+5.000,30
+0,00
+5.000,30
+000014 VELUDO CONFORT
+001 TINTO / 00040 40 - CASTOR
+00000 LISO / 00000 Padrao
+Pronta entrega
+44.263,60
+100,00
+44.163,60
+09/02/2026
+7.330,90
+1.000,00
+6.330,90
+20/03/2026
+3.800,00
+0,00
+3.800,00
+30/03/2026
+3.982,80
+0,00
+3.982,80
+000014 VELUDO CONFORT
+001 TINTO / 00011 11 - BEIGE
+00000 LISO / 00000 Padrao
+20/03/2026
+8.000,00
+0,00
+8.000,00
+Total Disponível 484.801,60
+
+olha o código
+scraper-dgb/
+├── app.py                    # Aplicação Flask principal
+├── scraper.py               # Lógica de scraping
+├── consolidator.py          # Consolidação de dados
+├── parser_dgb.py            # Parser específico para HTML
+├── produtos.txt            # Lista de produtos
+├── requirements.txt        # Dependências
+├── .env                    # Variáveis de ambiente
+├── .gitignore
+├── README.md
+└── templates/
+    └── index.html          # Interface web
+
+## código do index.html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraper DGB - Sistema Simplificado</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .card { margin-bottom: 20px; }
+        .progress { height: 25px; }
+        .log-container { 
+            height: 300px; 
+            overflow-y: auto; 
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container">
+            <span class="navbar-brand">Scraper DGB - Sistema Simplificado</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Controles</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Lista de Produtos</label>
+                            <textarea class="form-control" id="products-list" rows="5"></textarea>
+                            <small class="text-muted">Códigos separados por vírgula</small>
+                        </div>
+                        
+                        <button class="btn btn-outline-primary w-100 mb-2" onclick="loadProducts()">
+                            Carregar Produtos
+                        </button>
+                        <button class="btn btn-outline-success w-100 mb-3" onclick="saveProducts()">
+                            Salvar Produtos
+                        </button>
+                        
+                        <button class="btn btn-success w-100 mb-2" id="start-btn" onclick="startScraping()">
+                            Iniciar Scraping
+                        </button>
+                        <button class="btn btn-danger w-100 mb-2" id="stop-btn" onclick="stopScraping()" disabled>
+                            Parar Scraping
+                        </button>
+                        <button class="btn btn-warning w-100 mb-2" onclick="createCSVs()">
+                            Criar CSVs
+                        </button>
+                        <button class="btn btn-info w-100 mb-2" onclick="consolidate()">
+                            Consolidar Dados
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Progresso</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-3">
+                            <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+                        </div>
+                        <p><strong>Status:</strong> <span id="status-text">Pronto</span></p>
+                        <p><strong>Produto Atual:</strong> <span id="current-product">-</span></p>
+                        <p><strong>Mensagem:</strong> <span id="status-message">Aguardando início</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Logs do Sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-container" id="log-content">
+                            <!-- Logs serão inseridos aqui -->
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="clearLogs()">
+                            Limpar Logs
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0">Arquivos CSV</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="files-list">
+                            <!-- Lista de arquivos será inserida aqui -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let logs = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.unshift(`[${timestamp}] ${message}`);
+            
+            if (logs.length > 50) logs.pop();
+            
+            updateLogs();
+        }
+        
+        function updateLogs() {
+            const container = document.getElementById('log-content');
+            container.innerHTML = logs.map(log => `<div>${log}</div>`).join('');
+        }
+        
+        function clearLogs() {
+            logs = [];
+            updateLogs();
+        }
+        
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                const data = await response.json();
+                document.getElementById('products-list').value = data.produtos;
+                addLog('Produtos carregados', 'success');
+            } catch (error) {
+                addLog('Erro ao carregar produtos', 'error');
+            }
+        }
+        
+        async function saveProducts() {
+            const produtos = document.getElementById('products-list').value;
+            
+            try {
+                const response = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ produtos })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Produtos salvos', 'success');
+                } else {
+                    addLog('Erro: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLog('Erro ao salvar produtos', 'error');
+            }
+        }
+        
+        async function startScraping() {
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+            
+            addLog('Iniciando scraping...', 'info');
+            
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Scraping iniciado com sucesso', 'success');
+                    startStatusPolling();
+                } else {
+                    addLog('Erro: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLog('Erro ao iniciar scraping', 'error');
+            }
+        }
+        
+        async function stopScraping() {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Scraping parado', 'warning');
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('stop-btn').disabled = true;
+                }
+            } catch (error) {
+                addLog('Erro ao parar scraping', 'error');
+            }
+        }
+        
+        async function createCSVs() {
+            addLog('Criando CSVs...', 'info');
+            
+            try {
+                // Esta função precisará ser implementada
+                // Ela irá processar os resultados do scraping e criar CSVs
+                addLog('Funcionalidade em desenvolvimento', 'info');
+            } catch (error) {
+                addLog('Erro ao criar CSVs: ' + error, 'error');
+            }
+        }
+        
+        async function consolidate() {
+            addLog('Iniciando consolidação...', 'info');
+            
+            try {
+                const response = await fetch('/api/consolidate', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('Consolidação concluída: ' + data.message, 'success');
+                    loadFiles();
+                } else {
+                    addLog('Erro na consolidação: ' + data.error, 'error');
+                }
+            } catch (error) {
+                addLog('Erro na consolidação: ' + error, 'error');
+            }
+        }
+        
+        function startStatusPolling() {
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch('/api/status');
+                    const status = await response.json();
+                    
+                    updateStatus(status);
+                    
+                    if (!status.running) {
+                        clearInterval(interval);
+                        document.getElementById('start-btn').disabled = false;
+                        document.getElementById('stop-btn').disabled = true;
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar status:', error);
+                }
+            }, 1000);
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('progress-bar').style.width = status.progress + '%';
+            document.getElementById('progress-bar').textContent = status.progress + '%';
+            document.getElementById('status-text').textContent = status.running ? 'Executando' : 'Parado';
+            document.getElementById('current-product').textContent = status.current || '-';
+            document.getElementById('status-message').textContent = status.message;
+            
+            // Adicionar logs dos resultados
+            if (status.results && status.results.length > 0) {
+                const lastResult = status.results[status.results.length - 1];
+                if (lastResult.timestamp) {
+                    const time = new Date(lastResult.timestamp).toLocaleTimeString();
+                    const msg = lastResult.success ? 
+                        `✅ ${lastResult.codigo} processado` : 
+                        `❌ ${lastResult.codigo} erro: ${lastResult.error}`;
+                    
+                    if (!logs.some(log => log.includes(lastResult.codigo))) {
+                        addLog(msg, lastResult.success ? 'success' : 'error');
+                    }
+                }
+            }
+        }
+        
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const data = await response.json();
+                
+                let html = '<div class="list-group">';
+                
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(file => {
+                        html += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>${file.name}</span>
+                                <a href="${file.url}" class="btn btn-sm btn-primary">Baixar</a>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += '<div class="list-group-item text-muted">Nenhum arquivo CSV</div>';
+                }
+                
+                html += '</div>';
+                document.getElementById('files-list').innerHTML = html;
+                
+            } catch (error) {
+                console.error('Erro ao carregar arquivos:', error);
+            }
+        }
+
+        async function createCSVs() {
+            addLog('Criando CSVs a partir dos resultados...', 'info');
+            
+            try {
+                const response = await fetch('/api/create-csvs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✅ ${data.message}`, 'success');
+                    
+                    // Mostrar arquivos criados
+                    if (data.files && data.files.length > 0) {
+                        let html = '<div class="alert alert-success mt-3"><h5>Arquivos Criados:</h5><ul>';
+                        data.files.forEach(file => {
+                            html += `<li>${file.produto}: <a href="/api/download/csv/${file.filename}">${file.filename}</a></li>`;
+                        });
+                        html += '</ul></div>';
+                        
+                        // Adicionar ao log ou mostrar em algum lugar
+                        document.getElementById('results').innerHTML = html;
+                    }
+                    
+                    // Atualizar lista de arquivos
+                    loadFiles();
+                    
+                } else {
+                    addLog(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog('Erro ao criar CSVs: ' + error, 'error');
+            }
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts();
+            loadFiles();
+            addLog('Sistema inicializado', 'success');
+        });
+    </script>
+</body>
+</html>
+
+## código do .env
+DGB_USUARIO=tiago
+DGB_SENHA=Esmeralda852456#&
+DGB_URL_LOGIN=http://sistemadgb.4pu.com:90/dgb/login.jsf
+DGB_URL_ESTOQUE=http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf
+
+## código do app.py
+# app.py - ATUALIZADO com funcionalidade completa
+import os
+import json
+import threading
+import logging
+from datetime import datetime
+from flask import Flask, render_template, request, jsonify, send_file
+from flask_cors import CORS
+from dotenv import load_dotenv
+
+# Import dos módulos
+import scraper
+import consolidator
+import parser_dgb
+
+# Carregar variáveis de ambiente
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Pastas
+CSV_FOLDER = 'csv'
+os.makedirs(CSV_FOLDER, exist_ok=True)
+
+# Status global
+scraping_status = {
+    'running': False,
+    'progress': 0,
+    'total': 0,
+    'current': '',
+    'message': '',
+    'results': [],
+    'csv_files': [],
+    'start_time': None,
+    'end_time': None
+}
+
+# Variável para a thread
+scraper_thread = None
+
+@app.route('/')
+def index():
+    """Página principal"""
+    return render_template('index.html')
+
+@app.route('/api/status')
+def get_status():
+    """Retorna o status atual"""
+    return jsonify(scraping_status)
+
+@app.route('/api/start', methods=['POST'])
+def start_scraping():
+    """Inicia o scraping"""
+    global scraping_status, scraper_thread
+    
+    if scraping_status['running']:
+        return jsonify({'error': 'Scraping já está em execução'}), 400
+    
+    # Reiniciar status
+    scraping_status.update({
+        'running': True,
+        'progress': 0,
+        'total': 0,
+        'current': '',
+        'message': 'Iniciando...',
+        'results': [],
+        'csv_files': [],
+        'start_time': datetime.now().isoformat(),
+        'end_time': None
+    })
+    
+    # Iniciar thread
+    scraper_thread = threading.Thread(target=scraper.run_scraping_thread, args=(scraping_status,))
+    scraper_thread.daemon = True
+    scraper_thread.start()
+    
+    return jsonify({'success': True, 'message': 'Scraping iniciado'})
+
+@app.route('/api/stop', methods=['POST'])
+def stop_scraping():
+    """Para o scraping"""
+    global scraping_status
+    scraping_status['running'] = False
+    return jsonify({'success': True, 'message': 'Scraping sendo interrompido'})
+
+@app.route('/api/test-login', methods=['POST'])
+def test_login():
+    """Testa as credenciais"""
+    try:
+        scraper_instance = scraper.DGBScraper(headless=True)
+        success = scraper_instance.login()
+        scraper_instance.close()
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Login realizado com sucesso!'})
+        else:
+            return jsonify({'success': False, 'error': 'Falha no login. Verifique credenciais.'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/products', methods=['GET', 'POST'])
+def manage_products():
+    """Gerencia lista de produtos"""
+    if request.method == 'GET':
+        try:
+            with open('produtos.txt', 'r') as f:
+                produtos = f.read().strip()
+            return jsonify({'produtos': produtos})
+        except:
+            return jsonify({'produtos': '14,15,19,20,23,24,27,28,29,30'})
+    
+    else:  # POST
+        try:
+            data = request.json
+            produtos = data.get('produtos', '')
+            
+            with open('produtos.txt', 'w') as f:
+                f.write(produtos)
+            
+            return jsonify({'success': True, 'message': 'Lista salva'})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/create-csvs', methods=['POST'])
+def create_csvs():
+    """Cria CSVs a partir dos resultados do scraping"""
+    try:
+        # Verificar se há resultados
+        if not scraping_status['results']:
+            return jsonify({'success': False, 'error': 'Nenhum resultado disponível. Execute o scraping primeiro.'})
+        
+        csv_files_created = []
+        
+        for result in scraping_status['results']:
+            if result.get('success') and 'html' in result:
+                produto = result['codigo']
+                html = result['html']
+                
+                # Parsear HTML e criar CSV
+                registros = parser_dgb.parse_html_dgb_simples(html, produto)
+                
+                if registros:
+                    filename = scraper.DGBScraper.create_csv_from_html(None, html, produto)
+                    if filename:
+                        csv_files_created.append({
+                            'produto': produto,
+                            'filename': filename
+                        })
+        
+        if csv_files_created:
+            return jsonify({
+                'success': True,
+                'message': f'Criados {len(csv_files_created)} CSVs',
+                'files': csv_files_created
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Não foi possível criar nenhum CSV'})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/consolidate', methods=['POST'])
+def consolidate():
+    """Consolida todos os CSVs"""
+    try:
+        resultado, mensagem = consolidator.consolidar_dados_estruturados()
+        
+        if resultado:
+            return jsonify({
+                'success': True,
+                'message': mensagem,
+                'resultado': resultado
+            })
+        else:
+            return jsonify({'success': False, 'error': mensagem})
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/download/csv/<filename>')
+def download_csv(filename):
+    """Baixa arquivo CSV"""
+    try:
+        return send_file(os.path.join(CSV_FOLDER, filename), as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
+
+@app.route('/api/files')
+def list_files():
+    """Lista arquivos CSV"""
+    try:
+        files = []
+        for file in os.listdir(CSV_FOLDER):
+            if file.endswith('.csv'):
+                filepath = os.path.join(CSV_FOLDER, file)
+                files.append({
+                    'name': file,
+                    'size': os.path.getsize(filepath),
+                    'url': f'/api/download/csv/{file}'
+                })
+        return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
+    except Exception as e:
+        return jsonify({'files': [], 'error': str(e)})
+
+@app.route('/api/dashboard')
+def get_dashboard():
+    """Retorna dados para o dashboard"""
+    try:
+        # Contar arquivos
+        csv_files = [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]
+        
+        # Último scraping
+        last_scraping = {
+            'start_time': scraping_status.get('start_time'),
+            'end_time': scraping_status.get('end_time'),
+            'total': scraping_status.get('total', 0),
+            'success': sum(1 for r in scraping_status['results'] if r.get('success')),
+            'errors': sum(1 for r in scraping_status['results'] if not r.get('success'))
+        }
+        
+        return jsonify({
+            'success': True,
+            'csv_files_count': len(csv_files),
+            'last_scraping': last_scraping,
+            'is_running': scraping_status['running']
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+if __name__ == '__main__':
+    # Verificar variáveis de ambiente
+    required_vars = ['DGB_USUARIO', 'DGB_SENHA', 'DGB_URL_LOGIN', 'DGB_URL_ESTOQUE']
+    missing = [var for var in required_vars if not os.getenv(var)]
+    
+    if missing:
+        logger.error(f"❌ Variáveis faltando: {', '.join(missing)}")
+        logger.info("📝 Crie um arquivo .env com essas variáveis:")
+        for var in missing:
+            logger.info(f"   {var}=seu_valor")
+        exit(1)
+    
+    # Criar pasta csv se não existir
+    os.makedirs('csv', exist_ok=True)
+    
+    logger.info("✅ Sistema iniciado com sucesso!")
+    logger.info(f"👤 Usuário: {os.getenv('DGB_USUARIO')}")
+    logger.info(f"📁 Pasta CSV: {os.path.abspath('csv')}")
+    
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+## código do consolidator.py
+# consolidator.py - Consolida CSVs de forma robusta
+import os
+import pandas as pd
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+def consolidar_dados_estruturados():
+    """Consolida todos os CSVs"""
+    try:
+        # Verificar se a pasta csv existe
+        if not os.path.exists('csv'):
+            return None, "Pasta 'csv' não encontrada"
+        
+        # Listar arquivos CSV
+        csv_files = [f for f in os.listdir('csv') if f.endswith('.csv')]
+        
+        if not csv_files:
+            return None, "Nenhum arquivo CSV encontrado na pasta 'csv'"
+        
+        logger.info(f"📊 Processando {len(csv_files)} arquivos CSV...")
+        
+        # Ler e consolidar todos os CSVs
+        dfs = []
+        arquivos_processados = []
+        
+        for csv_file in csv_files:
+            try:
+                filepath = os.path.join('csv', csv_file)
+                logger.info(f"  → Lendo: {csv_file}")
+                
+                # Ler CSV com encoding apropriado
+                df = pd.read_csv(filepath, delimiter=';', encoding='utf-8-sig')
+                
+                if not df.empty:
+                    # Adicionar coluna com nome do arquivo de origem
+                    df['arquivo_origem'] = csv_file
+                    dfs.append(df)
+                    arquivos_processados.append(csv_file)
+                    
+                    logger.info(f"    ✓ {len(df)} registros")
+                else:
+                    logger.warning(f"    ✗ Arquivo vazio: {csv_file}")
+                    
+            except Exception as e:
+                logger.error(f"    ✗ Erro ao processar {csv_file}: {e}")
+                continue
+        
+        if not dfs:
+            return None, "Nenhum dado válido encontrado nos arquivos CSV"
+        
+        # Concatenar todos os DataFrames
+        logger.info("Concatenando dados...")
+        df_final = pd.concat(dfs, ignore_index=True, sort=False)
+        
+        # Remover duplicatas
+        logger.info("Removendo duplicatas...")
+        df_final = df_final.drop_duplicates()
+        
+        # Ordenar por artigo e previsão
+        if 'artigo' in df_final.columns and 'Previsão' in df_final.columns:
+            df_final = df_final.sort_values(['artigo', 'Previsão'])
+        
+        # Gerar timestamp para nome dos arquivos
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Salvar CSV consolidado
+        csv_filename = f"consolidado_{timestamp}.csv"
+        csv_path = os.path.join('csv', csv_filename)
+        df_final.to_csv(csv_path, sep=';', index=False, encoding='utf-8-sig')
+        logger.info(f"✅ CSV consolidado salvo: {csv_filename}")
+        
+        # Criar Excel com abas por produto
+        excel_filename = f"consolidado_{timestamp}.xlsx"
+        excel_path = os.path.join('csv', excel_filename)
+        
+        logger.info("Criando arquivo Excel...")
+        
+        with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+            # Aba com todos os dados
+            df_final.to_excel(writer, sheet_name='TODOS OS DADOS', index=False)
+            logger.info("  ✓ Aba 'TODOS OS DADOS' criada")
+            
+            # Criar abas por produto (limitar a 50 produtos para não exceder limite do Excel)
+            produtos = df_final['artigo'].unique() if 'artigo' in df_final.columns else []
+            
+            if len(produtos) > 0:
+                produtos = produtos[:50]  # Limitar a 50 abas
+                
+                for produto in produtos:
+                    try:
+                        df_produto = df_final[df_final['artigo'] == produto]
+                        nome_aba = f"ART_{produto}"[:31]  # Excel limita a 31 caracteres
+                        df_produto.to_excel(writer, sheet_name=nome_aba, index=False)
+                        logger.info(f"  ✓ Aba para produto {produto} criada")
+                    except Exception as e:
+                        logger.warning(f"  ✗ Erro ao criar aba para {produto}: {e}")
+                        continue
+            
+            # Aba de resumo
+            try:
+                if 'artigo' in df_final.columns and 'Estoque' in df_final.columns:
+                    # Converter valores para numérico
+                    def converter_valor(val):
+                        try:
+                            if pd.isna(val):
+                                return 0.0
+                            val_str = str(val).replace('.', '').replace(',', '.')
+                            return float(val_str)
+                        except:
+                            return 0.0
+                    
+                    df_final['estoque_numerico'] = df_final['Estoque'].apply(converter_valor)
+                    
+                    resumo = df_final.groupby('artigo').agg({
+                        'estoque_numerico': 'sum'
+                    }).reset_index()
+                    
+                    # Converter de volta para formato brasileiro
+                    def formatar_brasileiro(val):
+                        try:
+                            val_str = f"{val:,.2f}"
+                            return val_str.replace(',', 'X').replace('.', ',').replace('X', '.')
+                        except:
+                            return "0,00"
+                    
+                    resumo['Estoque Total'] = resumo['estoque_numerico'].apply(formatar_brasileiro)
+                    resumo = resumo[['artigo', 'Estoque Total']]
+                    
+                    resumo.to_excel(writer, sheet_name='RESUMO', index=False)
+                    logger.info("  ✓ Aba 'RESUMO' criada")
+            except Exception as e:
+                logger.warning(f"  ✗ Erro ao criar aba RESUMO: {e}")
+        
+        logger.info(f"✅ Excel criado: {excel_filename}")
+        
+        # Estatísticas finais
+        total_registros = len(df_final)
+        produtos_unicos = len(produtos) if 'artigo' in df_final.columns else 0
+        
+        resultado = {
+            'arquivo_csv': csv_filename,
+            'arquivo_excel': excel_filename,
+            'total_registros': total_registros,
+            'produtos_unicos': produtos_unicos,
+            'arquivos_processados': len(arquivos_processados),
+            'timestamp': timestamp
+        }
+        
+        mensagem = f"✅ Consolidação concluída: {total_registros} registros de {len(arquivos_processados)} arquivos"
+        logger.info(mensagem)
+        
+        return resultado, mensagem
+        
+    except Exception as e:
+        logger.error(f"❌ Erro na consolidação: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None, str(e)
+
+# Função para uso direto
+if __name__ == "__main__":
+    resultado, mensagem = consolidar_dados_estruturados()
+    if resultado:
+        print(f"\n{mensagem}")
+        print(f"📁 CSV: {resultado['arquivo_csv']}")
+        print(f"📁 Excel: {resultado['arquivo_excel']}")
+        print(f"📊 Registros: {resultado['total_registros']}")
+        print(f"🔢 Produtos únicos: {resultado['produtos_unicos']}")
+    else:
+        print(f"❌ {mensagem}")
+
+
+# código do parser_dgb.py
+# parser_dgb.py - Parser melhorado para HTML do DGB
+import re
+import csv
+from datetime import datetime
+from bs4 import BeautifulSoup
+import logging
+
+logger = logging.getLogger(__name__)
+
+def parse_html_dgb_simples(html_content, produto_codigo):
+    """Parser direto e eficiente para HTML do DGB"""
+    registros = []
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    artigo = str(produto_codigo).lstrip('0')
+    
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Remover scripts e styles
+        for tag in soup(["script", "style"]):
+            tag.decompose()
+        
+        # Encontrar todas as tabelas
+        tabelas = soup.find_all('table')
+        
+        for tabela_idx, tabela in enumerate(tabelas):
+            linhas = tabela.find_all('tr')
+            
+            for linha_idx, linha in enumerate(linhas):
+                # Obter texto da linha
+                texto_linha = linha.get_text(separator=' ', strip=True)
+                
+                # Verificar se esta linha contém o produto
+                if (produto_codigo in texto_linha or 
+                    artigo in texto_linha or 
+                    f" {produto_codigo} " in texto_linha):
+                    
+                    logger.info(f"Produto {produto_codigo} encontrado na tabela {tabela_idx+1}, linha {linha_idx+1}")
+                    
+                    # Procurar por dados nas próximas linhas (máximo 5 linhas)
+                    for j in range(linha_idx, min(linha_idx + 5, len(linhas))):
+                        linha_dados = linhas[j]
+                        texto_dados = linha_dados.get_text(separator=' ', strip=True)
+                        
+                        # Procurar por padrão de dados: 3 valores numéricos
+                        padrao = r'(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})'
+                        match = re.search(padrao, texto_dados)
+                        
+                        if match:
+                            # Encontrar previsão
+                            previsao = "Pronta entrega"
+                            
+                            # Verificar se há data na linha anterior
+                            for k in range(max(0, j-2), j):
+                                linha_anterior = linhas[k].get_text(separator=' ', strip=True)
+                                match_data = re.search(r'\b\d{2}/\d{2}/\d{4}\b', linha_anterior)
+                                if match_data:
+                                    previsao = match_data.group(0)
+                                    break
+                            
+                            # Criar registro
+                            registro = [
+                                artigo,
+                                timestamp,
+                                texto_linha[:200],  # Limitar descrição
+                                previsao,
+                                match.group(1),  # Estoque
+                                match.group(2),  # Pedidos
+                                match.group(3)   # Disponível
+                            ]
+                            registros.append(registro)
+                            logger.info(f"  → Registro extraído: {previsao} | {match.group(1)}, {match.group(2)}, {match.group(3)}")
+        
+        # Se ainda não encontrou, usar método de busca por texto
+        if not registros:
+            registros = parse_por_texto_completo(html_content, produto_codigo, timestamp, artigo)
+        
+        logger.info(f"Total de registros para {produto_codigo}: {len(registros)}")
+        
+        # Se ainda não encontrou, criar um registro vazio para manter o produto na lista
+        if not registros:
+            logger.warning(f"Nenhum dado extraído para produto {produto_codigo}")
+            # Criar um registro vazio para manter consistência
+            registro = [
+                artigo,
+                timestamp,
+                f"Produto {produto_codigo} - Nenhum dado extraído",
+                "N/A",
+                "0,00",
+                "0,00",
+                "0,00"
+            ]
+            registros.append(registro)
+        
+        return registros
+        
+    except Exception as e:
+        logger.error(f"Erro no parser para {produto_codigo}: {e}")
+        # Retornar registro vazio em caso de erro
+        return [[artigo, timestamp, f"Produto {produto_codigo} - Erro no parser", "Erro", "0,00", "0,00", "0,00"]]
+
+def parse_por_texto_completo(html_content, produto_codigo, timestamp, artigo):
+    """Método alternativo: busca por texto completo"""
+    registros = []
+    
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        texto_completo = soup.get_text(separator='\n')
+        linhas = texto_completo.split('\n')
+        
+        for i, linha in enumerate(linhas):
+            linha = linha.strip()
+            
+            # Verificar se linha contém o produto
+            if (produto_codigo in linha or 
+                f" {produto_codigo} " in linha or
+                (len(produto_codigo) >= 2 and produto_codigo in linha.replace(' ', ''))):
+                
+                # Procurar por dados nas próximas 10 linhas
+                for j in range(i, min(i + 10, len(linhas))):
+                    linha_atual = linhas[j].strip()
+                    
+                    # Procurar por padrão de 3 números com vírgula
+                    padrao = r'(\d[\d\.,]+\d)\s+(\d[\d\.,]+\d)\s+(\d[\d\.,]+\d)'
+                    match = re.search(padrao, linha_atual)
+                    
+                    if match:
+                        # Extrair previsão
+                        previsao = "Pronta entrega"
+                        
+                        # Verificar linhas anteriores para data
+                        for k in range(max(0, j-3), j):
+                            if re.search(r'\d{2}/\d{2}/\d{4}', linhas[k]):
+                                previsao = re.search(r'\d{2}/\d{2}/\d{4}', linhas[k]).group(0)
+                                break
+                        
+                        # Formatar valores
+                        estoque = formatar_valor_csv(match.group(1))
+                        pedidos = formatar_valor_csv(match.group(2))
+                        disponivel = formatar_valor_csv(match.group(3))
+                        
+                        registro = [
+                            artigo,
+                            timestamp,
+                            linha[:200],  # Descrição limitada
+                            previsao,
+                            estoque,
+                            pedidos,
+                            disponivel
+                        ]
+                        registros.append(registro)
+                        
+                        # Parar de procurar mais dados para este produto
+                        break
+        
+        return registros
+        
+    except Exception as e:
+        logger.error(f"Erro no parse por texto: {e}")
+        return []
+
+def formatar_valor_csv(valor_str):
+    """Formata valor para CSV no padrão brasileiro"""
+    try:
+        # Remover espaços
+        valor_str = str(valor_str).strip().replace(' ', '')
+        
+        if not valor_str:
+            return "0,00"
+        
+        # Verificar se já está no formato correto
+        if re.match(r'^\d{1,3}(?:\.\d{3})*,\d{2}$', valor_str):
+            return valor_str
+        
+        # Se tem ponto como separador de milhar e vírgula como decimal
+        if '.' in valor_str and ',' in valor_str:
+            partes = valor_str.split(',')
+            inteiro = partes[0].replace('.', '')
+            decimal = partes[1][:2] if len(partes) > 1 else '00'
+            decimal = decimal.ljust(2, '0')
+            return f"{inteiro},{decimal}"
+        
+        # Se só tem vírgula
+        elif ',' in valor_str:
+            partes = valor_str.split(',')
+            inteiro = partes[0]
+            decimal = partes[1][:2] if len(partes) > 1 else '00'
+            decimal = decimal.ljust(2, '0')
+            return f"{inteiro},{decimal}"
+        
+        # Se só tem ponto (provavelmente decimal americano)
+        elif '.' in valor_str and valor_str.count('.') == 1:
+            partes = valor_str.split('.')
+            inteiro = partes[0]
+            decimal = partes[1][:2] if len(partes) > 1 else '00'
+            decimal = decimal.ljust(2, '0')
+            return f"{inteiro},{decimal}"
+        
+        # Número inteiro
+        else:
+            return f"{valor_str},00"
+            
+    except:
+        return "0,00"
+
+def criar_csv_direto(produto_codigo, registros):
+    """Cria CSV diretamente dos registros"""
+    try:
+        if not registros:
+            return None
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"produto_{produto_codigo}_{timestamp}.csv"
+        
+        import os
+        os.makedirs('csv', exist_ok=True)
+        
+        with open(f'csv/{filename}', 'w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                           'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+            writer.writerows(registros)
+        
+        logger.info(f"CSV criado: {filename}")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar CSV: {e}")
+        return None
+
+## código do produtos.txt
+14,15,19,20,23,24,27,28,29,30
+
+## código do requirements.txt
+Flask==3.0.0
+Flask-CORS==4.0.0
+selenium==4.15.0
+beautifulsoup4==4.12.2
+pandas==2.1.4
+openpyxl==3.1.2
+python-dotenv==1.0.0
+lxml==4.9.3
+requests==2.31.0
+
+
+## código do scraper.py
+# scraper.py - ATUALIZADO para salvar CSVs automaticamente
+import os
+import time
+import csv
+import logging
+from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from dotenv import load_dotenv
+
+# Importar parser
+import parser_dgb
+
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+class DGBScraper:
+    def __init__(self, headless=True):
+        self.headless = headless
+        self.driver = None
+        self.usuario = os.getenv('DGB_USUARIO')
+        self.senha = os.getenv('DGB_SENHA')
+        self.url_login = os.getenv('DGB_URL_LOGIN')
+        self.url_estoque = os.getenv('DGB_URL_ESTOQUE')
+        self.setup_driver()
+    
+    def setup_driver(self):
+        """Configura o navegador"""
+        chrome_options = Options()
+        if self.headless:
+            chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+        
+        self.driver = webdriver.Chrome(options=chrome_options)
+        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    
+    def login(self):
+        """Realiza login no sistema"""
+        try:
+            logger.info("Realizando login...")
+            self.driver.get(self.url_login)
+            time.sleep(3)
+            
+            # Preencher login
+            login_field = self.driver.find_element(By.ID, "login")
+            login_field.clear()
+            login_field.send_keys(self.usuario)
+            
+            # Preencher senha
+            senha_field = self.driver.find_element(By.ID, "senha")
+            senha_field.clear()
+            senha_field.send_keys(self.senha)
+            
+            # Clicar em entrar
+            try:
+                login_button = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+            except:
+                login_button = self.driver.find_element(By.ID, "botaoEntrar")
+            
+            login_button.click()
+            time.sleep(5)
+            
+            logger.info("Login realizado com sucesso!")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro no login: {e}")
+            return False
+    
+    def navigate_to_stock(self):
+        """Navega para página de estoque"""
+        try:
+            logger.info("Navegando para página de estoque...")
+            self.driver.get(self.url_estoque)
+            time.sleep(5)
+            
+            # Verificar se carregou
+            if "estoquePrevisaoConsulta" in self.driver.current_url:
+                logger.info("Página de estoque carregada com sucesso!")
+                return True
+            else:
+                # Tentar encontrar campo de produto
+                try:
+                    self.driver.find_element(By.ID, "produto")
+                    logger.info("Campo 'produto' encontrado")
+                    return True
+                except:
+                    logger.error("Não conseguiu carregar página de estoque")
+                    return False
+                
+        except Exception as e:
+            logger.error(f"Erro ao navegar para estoque: {e}")
+            return False
+    
+    def search_product(self, codigo, situacao="TINTO"):
+        """Pesquisa um produto específico e retorna HTML"""
+        try:
+            logger.info(f"Pesquisando produto {codigo}...")
+            
+            # Preencher produto
+            produto_field = self.driver.find_element(By.ID, "produto")
+            produto_field.clear()
+            produto_field.send_keys(str(codigo))
+            
+            # Preencher situação
+            situacao_field = self.driver.find_element(By.ID, "situacao")
+            situacao_field.clear()
+            situacao_field.send_keys(situacao)
+            
+            # Clicar em pesquisar
+            pesquisar_button = self.driver.find_element(By.ID, "j_idt67")
+            pesquisar_button.click()
+            
+            time.sleep(5)
+            
+            # Obter HTML
+            html = self.driver.page_source
+            
+            return {
+                'success': True,
+                'codigo': codigo,
+                'html': html,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Erro ao pesquisar produto {codigo}: {e}")
+            return {
+                'success': False,
+                'codigo': codigo,
+                'error': str(e)
+            }
+    
+    def create_csv_from_html(self, html_content, produto_codigo):
+        """Cria CSV a partir do HTML (método de instância)"""
+        try:
+            # Parsear HTML
+            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+            
+            if not registros:
+                logger.warning(f"Nenhum registro extraído para {produto_codigo}")
+                return None
+            
+            # Criar pasta csv se não existir
+            os.makedirs('csv', exist_ok=True)
+            
+            # Nome do arquivo
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"produto_{produto_codigo}_{timestamp}.csv"
+            filepath = os.path.join('csv', filename)
+            
+            # Escrever CSV
+            with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+                writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                               'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+                writer.writerows(registros)
+            
+            logger.info(f"CSV criado: {filename} ({len(registros)} registros)")
+            return filename
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar CSV para {produto_codigo}: {e}")
+            return None
+    
+    @staticmethod
+    def create_csv_from_html_static(html_content, produto_codigo):
+        """Método estático para criar CSV a partir de HTML"""
+        try:
+            # Parsear HTML
+            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+            
+            if not registros:
+                logger.warning(f"Nenhum registro extraído para {produto_codigo}")
+                return None
+            
+            # Criar pasta csv se não existir
+            os.makedirs('csv', exist_ok=True)
+            
+            # Nome do arquivo
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"produto_{produto_codigo}_{timestamp}.csv"
+            filepath = os.path.join('csv', filename)
+            
+            # Escrever CSV
+            with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+                writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                               'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+                writer.writerows(registros)
+            
+            logger.info(f"CSV criado: {filename} ({len(registros)} registros)")
+            return filename
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar CSV para {produto_codigo}: {e}")
+            return None
+    
+    def close(self):
+        """Fecha o navegador"""
+        if self.driver:
+            self.driver.quit()
+            logger.info("Navegador fechado")
+
+# Função auxiliar para criar CSV (pode ser chamada sem instância da classe)
+def create_csv_from_html(html_content, produto_codigo):
+    """
+    Função independente para criar CSV a partir de HTML
+    Compatível com chamadas de outras partes do sistema
+    """
+    try:
+        # Parsear HTML
+        registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+        
+        if not registros:
+            logger.warning(f"Nenhum registro extraído para {produto_codigo}")
+            return None
+        
+        # Criar pasta csv se não existir
+        os.makedirs('csv', exist_ok=True)
+        
+        # Nome do arquivo
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"produto_{produto_codigo}_{timestamp}.csv"
+        filepath = os.path.join('csv', filename)
+        
+        # Escrever CSV
+        with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                           'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+            writer.writerows(registros)
+        
+        logger.info(f"CSV criado: {filename} ({len(registros)} registros)")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar CSV para {produto_codigo}: {e}")
+        return None
+
+def run_scraping_thread(status_dict):
+    """Função executada na thread - ATUALIZADA para salvar CSVs"""
+    scraper = None
+    
+    try:
+        # Carregar produtos
+        with open('produtos.txt', 'r') as f:
+            produtos = [p.strip() for p in f.read().split(',') if p.strip()]
+        
+        status_dict['total'] = len(produtos)
+        status_dict['message'] = f'Processando {len(produtos)} produtos'
+        status_dict['csv_files'] = []  # Lista de CSVs criados
+        
+        # Iniciar scraper
+        scraper = DGBScraper(headless=False)
+        
+        # Login
+        status_dict['message'] = 'Realizando login...'
+        if not scraper.login():
+            status_dict['message'] = 'Falha no login'
+            status_dict['running'] = False
+            return
+        
+        # Navegar para estoque
+        status_dict['message'] = 'Navegando para estoque...'
+        if not scraper.navigate_to_stock():
+            status_dict['message'] = 'Erro ao acessar estoque'
+            status_dict['running'] = False
+            return
+        
+        status_dict['message'] = 'Iniciando consultas...'
+        
+        # Processar cada produto
+        for i, produto in enumerate(produtos, 1):
+            if not status_dict['running']:
+                break
+            
+            status_dict['current'] = produto
+            status_dict['progress'] = int((i / len(produtos)) * 100)
+            status_dict['message'] = f'Processando {produto} ({i}/{len(produtos)})'
+            
+            # Pesquisar produto
+            resultado = scraper.search_product(produto)
+            
+            # Se obteve HTML com sucesso, criar CSV
+            if resultado['success'] and 'html' in resultado:
+                # Usar o método de instância
+                csv_filename = scraper.create_csv_from_html(resultado['html'], produto)
+                
+                # Alternativamente, usar o método estático:
+                # csv_filename = DGBScraper.create_csv_from_html_static(resultado['html'], produto)
+                
+                # Ou usar a função independente:
+                # csv_filename = create_csv_from_html(resultado['html'], produto)
+                
+                if csv_filename:
+                    resultado['csv_file'] = csv_filename
+                    status_dict['csv_files'].append(csv_filename)
+                    logger.info(f"✅ Produto {produto} processado - CSV criado")
+                else:
+                    resultado['success'] = False
+                    resultado['error'] = 'Não foi possível criar CSV'
+                    logger.error(f"❌ Produto {produto}: erro ao criar CSV")
+            
+            status_dict['results'].append(resultado)
+            
+            # Pequena pausa entre consultas
+            time.sleep(2)
+        
+        # Resumo final
+        sucessos = sum(1 for r in status_dict['results'] if r.get('success'))
+        erros = sum(1 for r in status_dict['results'] if not r.get('success'))
+        
+        status_dict['message'] = f'✅ Scraping concluído! {sucessos} sucessos, {erros} erros'
+        status_dict['end_time'] = datetime.now().isoformat()
+        
+        logger.info(f"📊 Resumo: {sucessos} sucessos, {erros} erros")
+        logger.info(f"📁 CSVs criados: {len(status_dict['csv_files'])}")
+        
+    except Exception as e:
+        logger.error(f"Erro no scraping: {e}")
+        status_dict['message'] = f'❌ Erro: {str(e)}'
+    
+    finally:
+        if scraper:
+            scraper.close()
+        status_dict['running'] = False
+
+
+tb tem um print do site que estou fazendo o scraper

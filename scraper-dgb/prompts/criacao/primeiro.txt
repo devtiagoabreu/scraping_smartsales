@@ -1,0 +1,3136 @@
+Estou criando um sistema para webscraping porém estou encontrando dificuldade na identificação dos dados na página.
+
+1) Preciso que o sistema efetue o login;
+2) Entre na página de estoque;
+3) Digite no campo Produto o código que está em um arquivo "produtos.txt" (é uma lista) seguido do campo Situação que deve preencher sempre "TINTO" e clique em "Pesquisar";
+4) Salve o resultado de cada consulta em um arquivo CSV tabulado com os campos de título da coluna na primeira linha;
+5) depois Consolide esses CSVs em um arquivo CSV único e uma planilha do excel (A planilha terá uma aba para cada produto)
+
+O sistema tem que estar em flask e python;
+O sistema tem que ter uma interface web;
+O sistema precisa ter botões para executar tudo de uma só vez ou passo a passo;
+O sistema precisa ter um dashboard de tudo q "leu";
+
+hoje eu tenho um sistema quebrado:
+Ele ao fazer screemshot fecha o navegador... eu queria retirar o scremshot fullpage porque não funciona... e pegar os dados do HTML....
+
+Estrutura do CSV base (primeira extração de dados) 
+cabeçalho:
+artigo;datahora,Produto / Situação / Cor / Desenho / Variante;Previsão;Estoque;Pedidos;Disponível
+
+
+dados:
+14;21-01-2026 10:53;000014 VELUDO CONFORT 001 TINTO / 00005 5 - BLACK 00000 LISO / 00000 Padrao;Pronta entrega;8.174,10;5.234,20;2.939,90
+14;21-01-2026 10:53;000014 VELUDO CONFORT 001 TINTO / 00005 5 - BLACK 00000 LISO / 00000 Padrao;09/02/2026;14.858,20;0,00;14.858,20
+14;21-01-2026 10:53;000014 VELUDO CONFORT 001 TINTO / 00005 5 - BLACK 00000 LISO / 00000 Padrao;16/02/2026;15.327,70;4.700,00;10.627,70
+
+E assim por diante....
+
+A inteligência está em interpretar o HTML, note que o csv precisa ser sepado por ";" pois lidamos com números decimais no padrão brasil.
+
+aqui está o código quebrado, preciso criar algo do 0, preciso que reescreva tudo, deixe simples e intuitivo, simplifique estrutura de pastas:
+
+app.py
+# app.py - SCRAPER COM DEBUG E CSV DIRETO DO HTML
+import os
+import csv
+import json
+import time
+import threading
+import logging
+import re
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+from flask_cors import CORS
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+import pandas as pd
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+import sys
+
+# Configurar stdout para UTF-8
+sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+
+sys.path.append('.')
+
+# Carregar variáveis de ambiente
+load_dotenv()
+
+app = Flask(__name__)
+CORS(app)
+
+# Configurações do sistema
+UPLOAD_FOLDER = 'data'
+CSV_FOLDER = 'data/csv'
+PDF_FOLDER = 'data/pdf'
+LOG_FOLDER = 'data/logs'
+SCREENSHOT_FOLDER = 'data/screenshots'
+CONSOLIDATED_FOLDER = 'data/consolidated'
+DEBUG_FOLDER = 'data/debug'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(CSV_FOLDER, exist_ok=True)
+os.makedirs(PDF_FOLDER, exist_ok=True)
+os.makedirs(LOG_FOLDER, exist_ok=True)
+os.makedirs(SCREENSHOT_FOLDER, exist_ok=True)
+os.makedirs(CONSOLIDATED_FOLDER, exist_ok=True)
+os.makedirs(DEBUG_FOLDER, exist_ok=True)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dgb-comex-scraper-secret-2024')
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(LOG_FOLDER, 'scraper.log'), encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+class DGBScraper:
+    def __init__(self, headless=False):
+        self.headless = headless
+        self.driver = None
+        self.wait = None
+        self.session_id = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.usuario = os.getenv('DGB_USUARIO')
+        self.senha = os.getenv('DGB_SENHA')
+        self.url_login = os.getenv('DGB_URL_LOGIN')
+        self.url_estoque = os.getenv('DGB_URL_ESTOQUE')
+        self.setup_driver()
+        
+    def setup_driver(self):
+        """Configura o driver do Chrome"""
+        chrome_options = Options()
+        if self.headless:
+            chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        
+        self.driver = webdriver.Chrome(options=chrome_options)
+        self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        self.wait = WebDriverWait(self.driver, 30)
+        
+    def take_screenshot(self, name):
+        """Tira screenshot para debugging"""
+        try:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{self.session_id}_{name}_{timestamp}.png"
+            filepath = os.path.join(SCREENSHOT_FOLDER, filename)
+            self.driver.save_screenshot(filepath)
+            logger.info(f"Screenshot salvo: {filename}")
+            return filepath
+        except Exception as e:
+            logger.error(f"Erro ao tirar screenshot: {str(e)}")
+            return None
+    
+    def login(self):
+        """Efetua login no sistema DGB"""
+        try:
+            logger.info(f"Acessando página de login: {self.url_login}")
+            
+            self.driver.get(self.url_login)
+            time.sleep(3)
+            
+            self.take_screenshot("login_page")
+            
+            # Localizar e preencher campos de login
+            try:
+                login_field = self.driver.find_element(By.ID, "login")
+            except NoSuchElementException:
+                login_field = self.driver.find_element(By.NAME, "login")
+            
+            login_field.clear()
+            login_field.send_keys(self.usuario)
+            
+            try:
+                senha_field = self.driver.find_element(By.ID, "senha")
+            except NoSuchElementException:
+                senha_field = self.driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+            
+            senha_field.clear()
+            senha_field.send_keys(self.senha)
+            
+            # Clicar no botão de login
+            try:
+                login_button = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+            except NoSuchElementException:
+                login_button = self.driver.find_element(By.ID, "botaoEntrar")
+            
+            login_button.click()
+            
+            time.sleep(5)
+            
+            # Navegar para a página de estoque
+            return self.navigate_to_stock_page()
+                
+        except Exception as e:
+            logger.error(f"Erro durante login: {str(e)}")
+            self.take_screenshot("erro_login")
+            return False
+    
+    def navigate_to_stock_page(self):
+        """Navega para a página de estoque"""
+        try:
+            # Ir diretamente para a URL de estoque
+            self.driver.get(self.url_estoque)
+            time.sleep(5)
+            
+            # Verificar se carregou corretamente
+            current_url = self.driver.current_url
+            if "estoquePrevisaoConsulta" in current_url:
+                logger.info("Página de estoque carregada com sucesso!")
+                return True
+            else:
+                # Tentar encontrar campo de produto
+                try:
+                    self.driver.find_element(By.ID, "produto")
+                    logger.info("Campo 'produto' encontrado - página carregada")
+                    return True
+                except:
+                    logger.error("Não conseguiu carregar página de estoque")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Erro ao navegar para página de estoque: {str(e)}")
+            return False
+    
+    def search_product(self, produto_codigo, situacao="TINTO"):
+        """Realiza pesquisa de um produto específico COM SITUAÇÃO"""
+        try:
+            logger.info(f"Pesquisando produto {produto_codigo}, situação {situacao}...")
+            
+            # Verificar se estamos na página correta
+            if "estoquePrevisaoConsulta" not in self.driver.current_url:
+                if not self.navigate_to_stock_page():
+                    return {
+                        'success': False,
+                        'codigo': produto_codigo,
+                        'error': 'Não conseguiu acessar página de estoque'
+                    }
+            
+            # Limpar campos
+            self.clear_fields()
+            
+            # Encontrar e preencher campo de produto
+            try:
+                produto_field = self.driver.find_element(By.ID, "produto")
+                produto_field.clear()
+                produto_field.send_keys(str(produto_codigo))
+                logger.info(f"Produto {produto_codigo} preenchido")
+            except Exception as e:
+                logger.error(f"Campo de produto não encontrado: {e}")
+                return {
+                    'success': False,
+                    'codigo': produto_codigo,
+                    'error': 'Campo de produto não encontrado'
+                }
+            
+            # Encontrar e preencher campo de situação (TINTO)
+            try:
+                situacao_field = self.driver.find_element(By.ID, "situacao")
+                situacao_field.clear()
+                situacao_field.send_keys(situacao)
+                logger.info(f"Situação '{situacao}' preenchida")
+            except Exception as e:
+                logger.warning(f"Campo de situação não encontrado: {e}")
+            
+            self.take_screenshot(f"antes_pesquisa_{produto_codigo}")
+            
+            # Encontrar e clicar no botão Pesquisar
+            try:
+                pesquisar_button = self.driver.find_element(By.ID, "j_idt67")
+                pesquisar_button.click()
+                logger.info("Botão Pesquisar clicado")
+            except Exception as e:
+                logger.error(f"Erro ao clicar no botão Pesquisar: {e}")
+                return {
+                    'success': False,
+                    'codigo': produto_codigo,
+                    'error': f'Erro ao clicar em Pesquisar: {e}'
+                }
+            
+            # Aguardar resultados
+            time.sleep(8)
+            
+            # Verificar se há resultados
+            try:
+                self.take_screenshot(f"resultados_{produto_codigo}")
+                
+                # OBTER HTML PARA DEBUG
+                html_content = self.driver.page_source
+                
+                # SALVAR HTML PARA DEBUG
+                debug_file = os.path.join(DEBUG_FOLDER, f"debug_html_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                logger.info(f"✅ HTML salvo para debug: {debug_file}")
+                
+                # SALVAR TEXTO PARA DEBUG
+                soup = BeautifulSoup(html_content, 'html.parser')
+                texto_completo = soup.get_text(separator='\n')
+                debug_text_file = os.path.join(DEBUG_FOLDER, f"debug_texto_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+                with open(debug_text_file, 'w', encoding='utf-8') as f:
+                    f.write(texto_completo)
+                logger.info(f"✅ Texto salvo para debug: {debug_text_file}")
+                
+                return {
+                    'success': True,
+                    'codigo': produto_codigo,
+                    'situacao': situacao,
+                    'arquivo_html': debug_file,
+                    'arquivo_texto': debug_text_file,
+                    'timestamp': datetime.now().isoformat()
+                }
+                    
+            except Exception as e:
+                logger.error(f"Erro ao aguardar resultados: {e}")
+                return {
+                    'success': False,
+                    'codigo': produto_codigo,
+                    'error': f'Erro no processamento: {e}'
+                }
+                
+        except Exception as e:
+            logger.error(f"Erro ao pesquisar produto {produto_codigo}: {e}")
+            self.take_screenshot(f"erro_pesquisa_{produto_codigo}")
+            return {
+                'success': False,
+                'codigo': produto_codigo,
+                'error': str(e)
+            }
+    
+    def clear_fields(self):
+        """Limpa os campos de pesquisa"""
+        try:
+            # Limpar campo produto
+            produto_field = self.driver.find_element(By.ID, "produto")
+            produto_field.clear()
+        except:
+            pass
+        
+        try:
+            # Limpar campo situação
+            situacao_field = self.driver.find_element(By.ID, "situacao")
+            situacao_field.clear()
+        except:
+            pass
+    
+    def close(self):
+        """Fecha o driver"""
+        if self.driver:
+            try:
+                self.driver.quit()
+                logger.info("Driver fechado")
+            except:
+                pass
+
+# Funções auxiliares
+def criar_csv_de_html(produto_codigo):
+    """Cria CSV a partir dos arquivos HTML de debug"""
+    try:
+        logger.info(f"🔧 Criando CSV para produto {produto_codigo} a partir dos arquivos de debug...")
+        
+        # Procurar arquivo HTML mais recente para este produto
+        debug_files = []
+        for file in os.listdir(DEBUG_FOLDER):
+            if file.startswith(f"debug_html_{produto_codigo}_") and file.endswith('.html'):
+                debug_files.append(file)
+        
+        if not debug_files:
+            logger.error(f"❌ Nenhum arquivo HTML encontrado para produto {produto_codigo}")
+            return None
+        
+        # Pegar o arquivo mais recente
+        debug_files.sort(reverse=True)
+        html_file = debug_files[0]
+        html_path = os.path.join(DEBUG_FOLDER, html_file)
+        
+        # Ler HTML
+        with open(html_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Parsear HTML
+        soup = BeautifulSoup(html_content, 'html.parser')
+        texto_completo = soup.get_text(separator='\n')
+        
+        # Processar texto para extrair dados
+        dados = processar_texto_para_csv(texto_completo, produto_codigo)
+        
+        if not dados:
+            logger.warning(f"⚠️ Nenhum dado extraído do HTML para produto {produto_codigo}")
+            return None
+        
+        # Criar CSV
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"produto_{produto_codigo}_TINTO_{timestamp}.csv"
+        filepath = os.path.join(CSV_FOLDER, filename)
+        
+        # Cabeçalho
+        cabecalho = ['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante', 
+                    'Previsão', 'Estoque', 'Pedidos', 'Disponível']
+        
+        with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
+            writer = csv.writer(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(cabecalho)
+            
+            for registro in dados:
+                if len(registro) == 7:
+                    writer.writerow(registro)
+        
+        logger.info(f"✅ CSV criado com sucesso: {filename} ({len(dados)} registros)")
+        
+        # Amostra no log
+        if dados:
+            logger.info(f"Amostra do CSV para {produto_codigo}:")
+            for i, linha in enumerate(dados[:2]):
+                logger.info(f"Linha {i+1}: {linha}")
+        
+        return filename
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar CSV do HTML: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return None
+
+def processar_texto_para_csv(texto_completo, produto_codigo):
+    """Processa texto completo para extrair dados no formato CSV"""
+    dados = []
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    artigo_codigo = str(produto_codigo).lstrip('0')
+    
+    try:
+        linhas = texto_completo.split('\n')
+        
+        # Procurar por blocos que contenham o produto
+        for i in range(len(linhas)):
+            linha = linhas[i].strip()
+            
+            # Verificar se contém o produto (com 6 dígitos)
+            produto_match = re.search(r'\b(\d{6})\b', linha)
+            if produto_match and produto_match.group(1).lstrip('0') == artigo_codigo:
+                # Encontrou o produto, agora procurar os dados
+                logger.info(f"Encontrado produto {produto_codigo} na linha {i}: {linha[:50]}...")
+                
+                # Procurar pelas próximas linhas que contenham os dados
+                for j in range(i, min(i + 20, len(linhas))):
+                    linha_atual = linhas[j].strip()
+                    
+                    # Verificar se é uma linha de dados (contém datas e valores)
+                    if eh_linha_de_dados(linha_atual):
+                        # Extrair dados desta linha
+                        registro = extrair_dados_linha(linha_atual, artigo_codigo, timestamp, linha)
+                        if registro:
+                            dados.append(registro)
+                
+                # Se encontrou dados, pode pular para o próximo produto
+                if dados:
+                    break
+        
+        # Se não encontrou pelo padrão exato, tentar método mais amplo
+        if not dados:
+            dados = buscar_dados_alternativo(texto_completo, produto_codigo, timestamp)
+    
+    except Exception as e:
+        logger.error(f"Erro no processamento de texto: {e}")
+    
+    return dados
+
+def eh_linha_de_dados(linha):
+    """Verifica se a linha contém dados de estoque"""
+    # Verificar padrões comuns: datas e 3 valores numéricos
+    padrao_data_valores = r'(\d{2}/\d{2}/\d{4}|Pronta entrega).*?[\d.,]+\s+[\d.,]+\s+[\d.,]+'
+    if re.search(padrao_data_valores, linha, re.IGNORECASE):
+        return True
+    
+    # Verificar se tem 3 valores numéricos seguidos
+    valores = re.findall(r'[\d.,]+', linha)
+    if len(valores) >= 3:
+        return True
+    
+    return False
+
+def extrair_dados_linha(linha_dados, artigo_codigo, timestamp, descricao_original):
+    """Extrai dados de uma linha específica"""
+    try:
+        # Extrair previsão (data ou "Pronta entrega")
+        previsao = "Pronta entrega"
+        match_data = re.search(r'\d{2}/\d{2}/\d{4}', linha_dados)
+        if match_data:
+            previsao = match_data.group(0)
+        
+        # Extrair os 3 valores numéricos
+        valores = re.findall(r'[\d.,]+', linha_dados)
+        if len(valores) >= 3:
+            estoque = formatar_valor_csv(valores[0])
+            pedidos = formatar_valor_csv(valores[1])
+            disponivel = formatar_valor_csv(valores[2])
+            
+            # Limpar descrição
+            descricao_limpa = limpar_descricao(descricao_original)
+            
+            return [
+                artigo_codigo,
+                timestamp,
+                descricao_limpa,
+                previsao,
+                estoque,
+                pedidos,
+                disponivel
+            ]
+    
+    except Exception as e:
+        logger.error(f"Erro ao extrair dados da linha: {e}")
+    
+    return None
+
+def buscar_dados_alternativo(texto_completo, produto_codigo, timestamp):
+    """Método alternativo para buscar dados quando o padrão não funciona"""
+    dados = []
+    artigo_codigo = str(produto_codigo).lstrip('0')
+    
+    try:
+        # Procurar qualquer menção ao produto
+        linhas = texto_completo.split('\n')
+        
+        for i in range(len(linhas)):
+            linha = linhas[i].strip()
+            
+            # Verificar se a linha contém valores numéricos
+            valores = re.findall(r'[\d.,]+', linha)
+            if len(valores) >= 3:
+                # Verificar se está próxima de uma menção ao produto
+                # Verificar linhas anteriores e posteriores
+                contexto = ""
+                for j in range(max(0, i-3), min(len(linhas), i+4)):
+                    contexto += linhas[j].strip() + " "
+                
+                # Se o contexto contém o produto
+                if str(produto_codigo) in contexto or f" {artigo_codigo} " in contexto:
+                    # Tentar extrair previsão
+                    previsao = "Pronta entrega"
+                    for k in range(max(0, i-2), min(len(linhas), i+3)):
+                        linha_previsao = linhas[k].strip()
+                        match_data = re.search(r'\d{2}/\d{2}/\d{4}', linha_previsao)
+                        if match_data:
+                            previsao = match_data.group(0)
+                            break
+                    
+                    # Extrair descrição do contexto
+                    descricao = f"Produto {produto_codigo}"
+                    for k in range(max(0, i-5), i):
+                        linha_desc = linhas[k].strip()
+                        if len(linha_desc) > 10 and not re.search(r'[\d.,]+\s+[\d.,]+\s+[\d.,]+', linha_desc):
+                            descricao = linha_desc
+                            break
+                    
+                    registro = [
+                        artigo_codigo,
+                        timestamp,
+                        descricao,
+                        previsao,
+                        formatar_valor_csv(valores[0]),
+                        formatar_valor_csv(valores[1]),
+                        formatar_valor_csv(valores[2])
+                    ]
+                    
+                    dados.append(registro)
+    
+    except Exception as e:
+        logger.error(f"Erro no método alternativo: {e}")
+    
+    return dados
+
+def formatar_valor_csv(valor_str):
+    """Formata valor para CSV"""
+    try:
+        valor_str = str(valor_str).strip().replace(' ', '')
+        
+        if not valor_str:
+            return "0,00"
+        
+        if ',' in valor_str:
+            partes = valor_str.split(',')
+            inteiro = partes[0].replace('.', '')
+            decimal = partes[1] if len(partes) > 1 else '00'
+            
+            if len(decimal) == 1:
+                decimal = decimal + '0'
+            elif len(decimal) == 0:
+                decimal = '00'
+            
+            return f"{inteiro},{decimal}"
+        else:
+            valor_str = valor_str.replace('.', '')
+            return f"{valor_str},00"
+            
+    except Exception as e:
+        return "0,00"
+
+def limpar_descricao(descricao):
+    """Limpa a descrição do produto"""
+    try:
+        # Remover múltiplos espaços
+        descricao = re.sub(r'\s+', ' ', descricao)
+        # Remover caracteres especiais problemáticos
+        descricao = descricao.replace(';', ',')
+        return descricao.strip()
+    except:
+        return descricao
+
+# Variáveis globais
+scraper_thread = None
+scraping_status = {
+    'running': False,
+    'progress': 0,
+    'total': 0,
+    'current': '',
+    'message': '',
+    'results': [],
+    'start_time': None,
+    'end_time': None
+}
+
+def run_scraping():
+    """Função executada na thread para realizar o scraping"""
+    global scraping_status
+    
+    scraper = None
+    try:
+        scraping_status['start_time'] = datetime.now().isoformat()
+        
+        # Ler lista de produtos
+        produtos_file = 'produtos.txt'
+        if not os.path.exists(produtos_file):
+            with open(produtos_file, 'w') as f:
+                f.write('14,15,19,20,23,24,27,28,29,30')
+        
+        with open(produtos_file, 'r') as f:
+            conteudo = f.read().strip()
+            produtos = [p.strip() for p in conteudo.split(',') if p.strip()]
+        
+        scraping_status['total'] = len(produtos)
+        scraping_status['message'] = f'Encontrados {len(produtos)} produtos para processar'
+        scraping_status['results'] = []
+        
+        # Inicializar scraper
+        scraper = DGBScraper(headless=False)
+        
+        # Realizar login
+        scraping_status['message'] = 'Realizando login...'
+        logger.info("Tentando login...")
+        if not scraper.login():
+            scraping_status['message'] = 'Falha no login.'
+            scraping_status['running'] = False
+            logger.error("Login falhou")
+            return
+        
+        scraping_status['message'] = 'Login realizado! Iniciando consultas...'
+        logger.info("Login realizado com sucesso")
+        
+        # Processar cada produto
+        for i, produto in enumerate(produtos, 1):
+            if not scraping_status['running']:
+                break
+                
+            scraping_status['current'] = produto
+            scraping_status['progress'] = int((i / len(produtos)) * 100)
+            scraping_status['message'] = f'Processando produto {produto} ({i}/{len(produtos)})'
+            logger.info(f"Processando produto {produto} ({i}/{len(produtos)})")
+            
+            # Pesquisar produto - APENAS GERA DEBUG
+            resultado = scraper.search_product(produto, "TINTO")
+            
+            # Adicionar resultado
+            scraping_status['results'].append(resultado)
+            
+            if resultado['success']:
+                scraping_status['message'] = f'✅ Produto {produto} processado: Debug gerado'
+                logger.info(f"Produto {produto} processado: Debug gerado")
+                
+                # Log dos arquivos gerados
+                if 'arquivo_html' in resultado:
+                    logger.info(f"  → HTML debug: {os.path.basename(resultado['arquivo_html'])}")
+                if 'arquivo_texto' in resultado:
+                    logger.info(f"  → Texto debug: {os.path.basename(resultado['arquivo_texto'])}")
+            else:
+                scraping_status['message'] = f'❌ Erro no produto {produto}: {resultado.get("error", "Erro desconhecido")}'
+                logger.error(f"Erro no produto {produto}: {resultado.get('error', 'Erro desconhecido')}")
+            
+            # Pausa entre requisições
+            time.sleep(2)
+        
+        scraping_status['end_time'] = datetime.now().isoformat()
+        scraping_status['message'] = '✅ Scraping concluído com sucesso!'
+        logger.info("Scraping concluído com sucesso!")
+        
+        # Resumo final
+        sucessos = sum(1 for r in scraping_status['results'] if r.get('success'))
+        erros = sum(1 for r in scraping_status['results'] if not r.get('success'))
+        
+        logger.info(f"📊 RESUMO FINAL: {sucessos} sucessos, {erros} erros")
+        
+    except Exception as e:
+        logger.error(f"❌ Erro na thread de scraping: {str(e)}")
+        scraping_status['message'] = f"❌ Erro durante scraping: {str(e)}"
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+    finally:
+        if scraper:
+            scraper.close()
+            logger.info("Driver fechado")
+        scraping_status['running'] = False
+        scraping_status['end_time'] = scraping_status['end_time'] or datetime.now().isoformat()
+
+# Rotas Flask
+@app.route('/')
+def index():
+    """Página inicial"""
+    return render_template('index.html')
+
+@app.route('/api/status')
+def get_status():
+    """Retorna o status atual do scraping"""
+    return jsonify(scraping_status)
+
+@app.route('/api/start', methods=['POST'])
+def start_scraping():
+    """Inicia o processo de scraping"""
+    global scraper_thread, scraping_status
+    
+    if scraping_status['running']:
+        return jsonify({'error': 'Scraping já está em execução'}), 400
+    
+    # Reiniciar status
+    scraping_status = {
+        'running': True,
+        'progress': 0,
+        'total': 0,
+        'current': '',
+        'message': 'Iniciando...',
+        'results': [],
+        'start_time': None,
+        'end_time': None
+    }
+    
+    # Iniciar thread
+    scraper_thread = threading.Thread(target=run_scraping)
+    scraper_thread.daemon = True
+    scraper_thread.start()
+    
+    return jsonify({'success': True, 'message': 'Scraping iniciado'})
+
+@app.route('/api/stop', methods=['POST'])
+def stop_scraping():
+    """Para o scraping em execução"""
+    global scraping_status
+    scraping_status['running'] = False
+    return jsonify({'success': True, 'message': 'Scraping sendo interrompido'})
+
+@app.route('/api/debug/analyze/<produto_codigo>', methods=['GET'])
+def debug_analyze(produto_codigo):
+    """Analisa o HTML de um produto específico"""
+    try:
+        scraper = DGBScraper(headless=False)
+        
+        # Login
+        if not scraper.login():
+            scraper.close()
+            return jsonify({'success': False, 'error': 'Falha no login'})
+        
+        # Pesquisar produto
+        scraper.clear_fields()
+        
+        produto_field = scraper.driver.find_element(By.ID, "produto")
+        produto_field.clear()
+        produto_field.send_keys(str(produto_codigo))
+        
+        situacao_field = scraper.driver.find_element(By.ID, "situacao")
+        situacao_field.clear()
+        situacao_field.send_keys("TINTO")
+        
+        pesquisar_button = scraper.driver.find_element(By.ID, "j_idt67")
+        pesquisar_button.click()
+        
+        time.sleep(8)
+        
+        # Obter HTML
+        html_content = scraper.driver.page_source
+        
+        # Salvar HTML
+        debug_file = os.path.join(DEBUG_FOLDER, f"debug_analyze_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
+        with open(debug_file, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        scraper.close()
+        
+        return jsonify({
+            'success': True,
+            'analysis': {
+                'produto': produto_codigo,
+                'html_file': debug_file,
+                'html_preview': html_content[:2000] + '...' if len(html_content) > 2000 else html_content
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get-products')
+def get_products():
+    """Retorna a lista de produtos atual"""
+    try:
+        with open('produtos.txt', 'r') as f:
+            produtos = f.read().strip()
+        return jsonify({'produtos': produtos})
+    except Exception as e:
+        return jsonify({'produtos': '14,15,19,20,23,24,27,28,29,30'})
+
+@app.route('/api/update-products', methods=['POST'])
+def update_products():
+    """Atualiza a lista de produtos"""
+    try:
+        data = request.json
+        produtos = data.get('produtos', '')
+        
+        with open('produtos.txt', 'w') as f:
+            f.write(produtos)
+        
+        return jsonify({'success': True, 'message': 'Lista de produtos atualizada'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/files/csv')
+def list_csv_files():
+    """Lista arquivos CSV"""
+    try:
+        files = []
+        for file in os.listdir(CSV_FOLDER):
+            if file.endswith('.csv'):
+                filepath = os.path.join(CSV_FOLDER, file)
+                files.append({
+                    'name': file,
+                    'size': os.path.getsize(filepath),
+                    'path': f'/download/csv/{file}'
+                })
+        return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
+    except Exception as e:
+        return jsonify({'files': []})
+
+@app.route('/api/files/debug')
+def list_debug_files():
+    """Lista arquivos de debug"""
+    try:
+        files = []
+        for file in os.listdir(DEBUG_FOLDER):
+            if file.endswith(('.html', '.txt', '.json')):
+                filepath = os.path.join(DEBUG_FOLDER, file)
+                files.append({
+                    'name': file,
+                    'size': os.path.getsize(filepath),
+                    'path': f'/download/debug/{file}'
+                })
+        return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
+    except Exception as e:
+        return jsonify({'files': []})
+
+@app.route('/download/csv/<filename>')
+def download_csv(filename):
+    """Download de arquivo CSV"""
+    try:
+        return send_from_directory(CSV_FOLDER, filename, as_attachment=True)
+    except Exception as e:
+        return f"Erro ao baixar arquivo: {str(e)}", 404
+
+@app.route('/download/debug/<filename>')
+def download_debug(filename):
+    """Download de arquivo de debug"""
+    try:
+        return send_from_directory(DEBUG_FOLDER, filename, as_attachment=True)
+    except Exception as e:
+        return f"Erro ao baixar arquivo: {str(e)}", 404
+
+@app.route('/api/test-login', methods=['POST'])
+def test_login():
+    """Testa as credenciais de login"""
+    try:
+        scraper = DGBScraper(headless=False)
+        success = scraper.login()
+        scraper.close()
+        
+        if success:
+            return jsonify({'success': True, 'message': 'Login testado com sucesso!'})
+        else:
+            return jsonify({'success': False, 'error': 'Falha no login. Verifique as credenciais no arquivo .env'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/create-csv-from-debug/<produto_codigo>', methods=['POST'])
+def create_csv_from_debug(produto_codigo):
+    """Cria CSV a partir dos arquivos de debug"""
+    try:
+        filename = criar_csv_de_html(produto_codigo)
+        
+        if filename:
+            return jsonify({
+                'success': True,
+                'message': f'CSV criado com sucesso para produto {produto_codigo}',
+                'filename': filename,
+                'download_url': f'/download/csv/{filename}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Não foi possível criar CSV para produto {produto_codigo}'
+            })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/create-all-csvs', methods=['POST'])
+def create_all_csvs():
+    """Cria CSVs para todos os produtos com arquivos de debug"""
+    try:
+        # Ler lista de produtos
+        with open('produtos.txt', 'r') as f:
+            conteudo = f.read().strip()
+            produtos = [p.strip() for p in conteudo.split(',') if p.strip()]
+        
+        resultados = []
+        
+        for produto in produtos:
+            filename = criar_csv_de_html(produto)
+            if filename:
+                resultados.append({
+                    'produto': produto,
+                    'success': True,
+                    'filename': filename
+                })
+            else:
+                resultados.append({
+                    'produto': produto,
+                    'success': False,
+                    'error': 'Não foi possível criar CSV'
+                })
+        
+        sucessos = sum(1 for r in resultados if r['success'])
+        
+        return jsonify({
+            'success': True,
+            'message': f'Processados {len(resultados)} produtos: {sucessos} sucessos, {len(resultados)-sucessos} falhas',
+            'resultados': resultados
+        })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/consolidate', methods=['POST'])
+def consolidate_data():
+    """Consolida dados usando o consolidator.py"""
+    try:
+        import subprocess
+        import sys
+        
+        # Executar o consolidator diretamente
+        result = subprocess.run([sys.executable, "consolidator.py"], 
+                               capture_output=True, text=True, encoding='utf-8')
+        
+        if result.returncode == 0:
+            return jsonify({
+                'success': True,
+                'message': 'Consolidação realizada com sucesso',
+                'output': result.stdout
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Erro na consolidação',
+                'error': result.stderr
+            })
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ROTA REMOVIDA - Não existe mais /api/config
+# @app.route('/api/config', methods=['GET', 'POST'])
+# def api_config():
+#     """API para gerenciar configurações - REMOVIDA"""
+#     return jsonify({'error': 'Endpoint removido. Use arquivo .env'}), 404
+
+if __name__ == '__main__':
+    # Verificar se o arquivo .env existe
+    if not os.path.exists('.env'):
+        logger.error("❌ Arquivo .env não encontrado!")
+        logger.info("📝 Por favor, crie um arquivo .env com as seguintes variáveis:")
+        logger.info("   DGB_USUARIO=seu_usuario")
+        logger.info("   DGB_SENHA=sua_senha")
+        logger.info("   DGB_URL_LOGIN=http://sistemadgb.4pu.com:90/dgb/login.jsf")
+        logger.info("   DGB_URL_ESTOQUE=http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf")
+        exit(1)
+    
+    # Carregar variáveis de ambiente
+    load_dotenv()
+    
+    # Verificar se todas as variáveis necessárias estão definidas
+    required_vars = ['DGB_USUARIO', 'DGB_SENHA', 'DGB_URL_LOGIN', 'DGB_URL_ESTOQUE']
+    missing_vars = []
+    
+    for var in required_vars:
+        if not os.getenv(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        logger.error(f"❌ Variáveis de ambiente faltando: {', '.join(missing_vars)}")
+        logger.info("📝 Configure essas variáveis no arquivo .env")
+        exit(1)
+    
+    # Criar pastas necessárias
+    os.makedirs('templates', exist_ok=True)
+    
+    logger.info("✅ Configurações carregadas. Sistema pronto.")
+    logger.info(f"👤 Usuário: {os.getenv('DGB_USUARIO')}")
+    logger.info(f"🔗 URL Login: {os.getenv('DGB_URL_LOGIN')}")
+    
+    # Verificar se existe arquivo de produtos
+    if not os.path.exists('produtos.txt'):
+        with open('produtos.txt', 'w') as f:
+            f.write('14,15,19,20,23,24,27,28,29,30')
+        logger.info("📝 Arquivo produtos.txt criado com valores padrão")
+    
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+
+## consolidator.py
+# consolidator.py - VERSÃO COMPLETAMENTE CORRIGIDA
+import os
+import re
+import pandas as pd
+import numpy as np
+from datetime import datetime
+from pathlib import Path
+import logging
+from typing import List, Dict, Any, Optional, Tuple
+import json
+
+logger = logging.getLogger(__name__)
+
+class DGBDataProcessor:
+    """Processa dados do DGB no formato correto"""
+    
+    def __init__(self, csv_folder: str = "data/csv", output_folder: str = "data/consolidated"):
+        self.csv_folder = csv_folder
+        self.output_folder = output_folder
+        os.makedirs(output_folder, exist_ok=True)
+    
+    def processar_csv_estruturado(self, arquivo_path: str) -> List[Dict[str, Any]]:
+        """Processa arquivo CSV no formato estruturado"""
+        dados_processados = []
+        
+        try:
+            logger.info(f"Processando arquivo: {os.path.basename(arquivo_path)}")
+            
+            # Ler arquivo CSV
+            df = pd.read_csv(arquivo_path, delimiter=';', encoding='utf-8-sig')
+            
+            # Verificar colunas
+            required_columns = ['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                              'Previsão', 'Estoque', 'Pedidos', 'Disponível']
+            
+            for _, row in df.iterrows():
+                try:
+                    # Extrair informações
+                    artigo = str(row['artigo']).strip()
+                    datahora = row['datahora']
+                    descricao_completa = str(row['Produto / Situação / Cor / Desenho / Variante']).strip()
+                    previsao = str(row['Previsão']).strip()
+                    
+                    # Converter valores
+                    estoque = self.converter_valor(row['Estoque'])
+                    pedidos = self.converter_valor(row['Pedidos'])
+                    disponivel = self.converter_valor(row['Disponível'])
+                    
+                    # Extrair informações detalhadas da descrição
+                    info_detalhada = self.extrair_info_detalhada(descricao_completa, artigo)
+                    
+                    # Criar registro estruturado
+                    registro = {
+                        'ARTIGO': info_detalhada['artigo'],
+                        'DESCRICAO': info_detalhada['descricao'],
+                        'COR_CODIGO': info_detalhada['cor_codigo'],
+                        'COR': info_detalhada['cor_nome'],
+                        'DESENHO': info_detalhada['desenho'],
+                        'VARIANTE': info_detalhada['variante'],
+                        'SITUACAO': info_detalhada['situacao'],
+                        'PREVISAO': previsao,
+                        'ESTOQUE': self.formatar_valor(estoque),
+                        'PEDIDOS': self.formatar_valor(pedidos),
+                        'DISPONIVEL': self.formatar_valor(disponivel),
+                        'DATAHORA': datahora
+                    }
+                    
+                    dados_processados.append(registro)
+                    
+                except Exception as e:
+                    logger.warning(f"Erro ao processar linha: {e}")
+                    continue
+            
+            logger.info(f"Processados {len(dados_processados)} registros de {len(df)} linhas")
+            
+        except Exception as e:
+            logger.error(f"Erro ao processar arquivo {arquivo_path}: {e}")
+        
+        return dados_processados
+    
+    def extrair_info_detalhada(self, descricao: str, artigo_padrao: str) -> Dict[str, str]:
+        """Extrai informações detalhadas da descrição do produto"""
+        info = {
+            'artigo': artigo_padrao.zfill(6),
+            'descricao': 'PRODUTO ' + artigo_padrao,
+            'cor_codigo': '00000',
+            'cor_nome': 'NÃO IDENTIFICADA',
+            'desenho': 'LISO',
+            'variante': 'PADRÃO',
+            'situacao': 'TINTO'
+        }
+        
+        try:
+            # Procurar código de 6 dígitos
+            match_artigo = re.search(r'(\d{6})', descricao)
+            if match_artigo:
+                info['artigo'] = match_artigo.group(1)
+            
+            # Procurar nome do produto após o código
+            match_desc = re.search(r'\d{6}\s+([A-Z][A-Z\s]+?)(?=\s+\d{3}|$)', descricao)
+            if match_desc:
+                info['descricao'] = match_desc.group(1).strip()
+            
+            # Procurar situação
+            match_situacao = re.search(r'\d{3}\s+(TINTO|CRU|ESTAMPADO)', descricao, re.IGNORECASE)
+            if match_situacao:
+                info['situacao'] = match_situacao.group(1).upper()
+            
+            # Procurar cor
+            match_cor = re.search(r'/\s*(\d{5})\s+(\d+)\s*-\s*([A-Z\s]+)', descricao)
+            if match_cor:
+                info['cor_codigo'] = match_cor.group(1)
+                info['cor_nome'] = f"{match_cor.group(2)} - {match_cor.group(3).strip()}"
+            
+            # Procurar desenho
+            match_desenho = re.search(r'(\d{5})\s+(LISO|ESTAMPADO)', descricao, re.IGNORECASE)
+            if match_desenho:
+                info['desenho'] = match_desenho.group(2).upper()
+            
+            # Procurar variante
+            match_variante = re.search(r'(\d{5})\s+(Padrao|Padrão)', descricao, re.IGNORECASE)
+            if match_variante:
+                info['variante'] = 'PADRÃO'
+                
+        except Exception as e:
+            logger.debug(f"Erro ao extrair info detalhada: {e}")
+        
+        return info
+    
+    def converter_valor(self, valor) -> float:
+        """Converte valor string para float"""
+        try:
+            if pd.isna(valor):
+                return 0.0
+            
+            valor_str = str(valor).strip()
+            # Remover pontos de milhar e converter vírgula para ponto
+            valor_str = valor_str.replace('.', '').replace(',', '.')
+            return float(valor_str)
+        except:
+            return 0.0
+    
+    def formatar_valor(self, valor: float) -> str:
+        """Formata valor float para string brasileira"""
+        try:
+            # Formatar com separador de milhar e vírgula decimal
+            valor_str = f"{valor:,.2f}"
+            valor_str = valor_str.replace(',', 'X').replace('.', ',').replace('X', '.')
+            return valor_str
+        except:
+            return "0,00"
+    
+    def consolidar_todos_arquivos(self) -> Tuple[pd.DataFrame, str]:
+        """Consolida todos os arquivos CSV"""
+        todos_dados = []
+        
+        logger.info("=" * 60)
+        logger.info("INICIANDO CONSOLIDAÇÃO DOS DADOS")
+        logger.info("=" * 60)
+        
+        # Listar arquivos CSV
+        csv_files = list(Path(self.csv_folder).glob("produto_*.csv"))
+        
+        if not csv_files:
+            return pd.DataFrame(), "Nenhum arquivo CSV encontrado"
+        
+        logger.info(f"Encontrados {len(csv_files)} arquivos CSV")
+        
+        # Processar cada arquivo
+        for csv_file in csv_files:
+            logger.info(f"Processando: {csv_file.name}")
+            dados = self.processar_csv_estruturado(str(csv_file))
+            if dados:
+                todos_dados.extend(dados)
+                logger.info(f"  → {len(dados)} registros extraídos")
+        
+        if not todos_dados:
+            return pd.DataFrame(), "Nenhum dado extraído dos arquivos"
+        
+        # Criar DataFrame
+        df = pd.DataFrame(todos_dados)
+        
+        # Ordenar colunas
+        colunas_ordem = ['ARTIGO', 'DESCRICAO', 'COR_CODIGO', 'COR', 'DESENHO', 
+                        'VARIANTE', 'SITUACAO', 'PREVISAO', 'ESTOQUE', 
+                        'PEDIDOS', 'DISPONIVEL', 'DATAHORA']
+        
+        # Manter apenas colunas existentes
+        colunas_existentes = [col for col in colunas_ordem if col in df.columns]
+        df = df[colunas_existentes]
+        
+        # Ordenar dados
+        df = df.sort_values(['ARTIGO', 'COR', 'PREVISAO']).reset_index(drop=True)
+        
+        # Estatísticas
+        total_registros = len(df)
+        total_estoque = sum(self.converter_valor(v) for v in df['ESTOQUE'])
+        total_pedidos = sum(self.converter_valor(v) for v in df['PEDIDOS'])
+        total_disponivel = sum(self.converter_valor(v) for v in df['DISPONIVEL'])
+        
+        logger.info("=" * 60)
+        logger.info("CONSOLIDAÇÃO CONCLUÍDA")
+        logger.info(f"Total de registros: {total_registros}")
+        logger.info(f"Total de estoque: {total_estoque:,.2f}")
+        logger.info(f"Total de pedidos: {total_pedidos:,.2f}")
+        logger.info(f"Total disponível: {total_disponivel:,.2f}")
+        logger.info(f"Produtos únicos: {df['ARTIGO'].nunique()}")
+        logger.info(f"Cores únicas: {df['COR'].nunique()}")
+        logger.info("=" * 60)
+        
+        mensagem = f"Processados {len(csv_files)} arquivos, {total_registros} registros"
+        return df, mensagem
+    
+    def gerar_csv_consolidado(self, df: pd.DataFrame) -> str:
+        """Gera CSV consolidado"""
+        if df.empty:
+            return ""
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"consolidado_final_{timestamp}.csv"
+        filepath = os.path.join(self.output_folder, filename)
+        
+        # Salvar CSV
+        df.to_csv(filepath, sep=';', index=False, encoding='utf-8-sig')
+        
+        logger.info(f"CSV consolidado gerado: {filename}")
+        return filename
+    
+    def gerar_excel_completo(self, df: pd.DataFrame) -> str:
+        """Gera Excel com múltiplas abas"""
+        if df.empty:
+            return ""
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"consolidado_completo_{timestamp}.xlsx"
+        filepath = os.path.join(self.output_folder, filename)
+        
+        with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
+            # Aba 1: Todos os dados
+            df.to_excel(writer, sheet_name='TODOS OS DADOS', index=False)
+            
+            # Aba 2: Resumo por produto
+            if 'ARTIGO' in df.columns:
+                resumo_produto = df.groupby('ARTIGO').agg({
+                    'DESCRICAO': 'first',
+                    'ESTOQUE': lambda x: self.somar_valores(x),
+                    'PEDIDOS': lambda x: self.somar_valores(x),
+                    'DISPONIVEL': lambda x: self.somar_valores(x)
+                }).reset_index()
+                resumo_produto.to_excel(writer, sheet_name='RESUMO POR PRODUTO', index=False)
+            
+            # Aba 3: Resumo por cor
+            if 'COR' in df.columns and 'ARTIGO' in df.columns:
+                resumo_cor = df.groupby(['ARTIGO', 'COR']).agg({
+                    'DESCRICAO': 'first',
+                    'ESTOQUE': lambda x: self.somar_valores(x),
+                    'PEDIDOS': lambda x: self.somar_valores(x),
+                    'DISPONIVEL': lambda x: self.somar_valores(x)
+                }).reset_index()
+                resumo_cor.to_excel(writer, sheet_name='RESUMO POR COR', index=False)
+            
+            # Aba 4: Pronta entrega
+            if 'PREVISAO' in df.columns:
+                pronta_entrega = df[df['PREVISAO'].str.contains('Pronta entrega', case=False, na=False)]
+                if not pronta_entrega.empty:
+                    pronta_entrega.to_excel(writer, sheet_name='PRONTA ENTREGA', index=False)
+            
+            # Aba 5: Datas futuras
+            if 'PREVISAO' in df.columns:
+                datas_futuras = df[~df['PREVISAO'].str.contains('Pronta entrega', case=False, na=False)]
+                if not datas_futuras.empty:
+                    datas_futuras.to_excel(writer, sheet_name='DATAS FUTURAS', index=False)
+            
+            # Aba 6: Tabela Pivot
+            if 'ARTIGO' in df.columns and 'COR' in df.columns and 'DISPONIVEL' in df.columns:
+                try:
+                    # Converter DISPONIVEL para numérico
+                    df_pivot = df.copy()
+                    df_pivot['DISPONIVEL_NUM'] = df_pivot['DISPONIVEL'].apply(self.converter_valor)
+                    
+                    pivot = pd.pivot_table(df_pivot, 
+                                         values='DISPONIVEL_NUM',
+                                         index='ARTIGO',
+                                         columns='COR',
+                                         aggfunc='sum',
+                                         fill_value=0)
+                    
+                    pivot.to_excel(writer, sheet_name='TABELA PIVOT')
+                except Exception as e:
+                    logger.warning(f"Não foi possível criar tabela pivot: {e}")
+        
+        logger.info(f"Excel completo gerado: {filename}")
+        return filename
+    
+    def somar_valores(self, serie):
+        """Soma valores de uma série"""
+        total = 0.0
+        for valor in serie:
+            total += self.converter_valor(valor)
+        return self.formatar_valor(total)
+    
+    def gerar_resumo_json(self, df: pd.DataFrame, csv_files: List[str]) -> Dict[str, Any]:
+        """Gera resumo em formato JSON"""
+        if df.empty:
+            return {}
+        
+        # Calcular totais
+        total_estoque = sum(self.converter_valor(v) for v in df['ESTOQUE'])
+        total_pedidos = sum(self.converter_valor(v) for v in df['PEDIDOS'])
+        total_disponivel = sum(self.converter_valor(v) for v in df['DISPONIVEL'])
+        
+        resumo = {
+            'data_consolidacao': datetime.now().isoformat(),
+            'total_registros': len(df),
+            'total_estoque': total_estoque,
+            'total_pedidos': total_pedidos,
+            'total_disponivel': total_disponivel,
+            'produtos_unicos': df['ARTIGO'].nunique(),
+            'cores_unicas': df['COR'].nunique(),
+            'arquivos_processados': len(csv_files),
+            'estoque_por_produto': {},
+            'disponivel_por_cor': {}
+        }
+        
+        # Estoque por produto
+        if 'ARTIGO' in df.columns and 'ESTOQUE' in df.columns:
+            estoque_por_produto = df.groupby('ARTIGO')['ESTOQUE'].apply(
+                lambda x: self.formatar_valor(sum(self.converter_valor(v) for v in x))
+            ).to_dict()
+            resumo['estoque_por_produto'] = estoque_por_produto
+        
+        # Disponível por cor
+        if 'COR' in df.columns and 'DISPONIVEL' in df.columns:
+            disponivel_por_cor = df.groupby('COR')['DISPONIVEL'].apply(
+                lambda x: self.formatar_valor(sum(self.converter_valor(v) for v in x))
+            ).to_dict()
+            resumo['disponivel_por_cor'] = disponivel_por_cor
+        
+        return resumo
+
+def consolidar_dados_estruturados():
+    """Função principal para consolidação"""
+    try:
+        logger.info("Iniciando consolidação de dados...")
+        
+        processor = DGBDataProcessor()
+        
+        # Consolidar dados
+        df, mensagem = processor.consolidar_todos_arquivos()
+        
+        if df.empty:
+            return None, mensagem
+        
+        # Listar arquivos processados
+        csv_files = list(Path(processor.csv_folder).glob("produto_*.csv"))
+        
+        # Gerar arquivos
+        csv_filename = processor.gerar_csv_consolidado(df)
+        excel_filename = processor.gerar_excel_completo(df)
+        
+        # Gerar resumo JSON
+        resumo = processor.gerar_resumo_json(df, csv_files)
+        
+        # Salvar JSON
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        json_filename = f"resumo_consolidacao_{timestamp}.json"
+        json_path = os.path.join(processor.output_folder, json_filename)
+        
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(resumo, f, ensure_ascii=False, indent=2)
+        
+        # Preparar resultado
+        resultado = {
+            'data_consolidacao': datetime.now().isoformat(),
+            'total_registros': len(df),
+            'total_estoque': resumo.get('total_estoque', 0),
+            'total_pedidos': resumo.get('total_pedidos', 0),
+            'total_disponivel': resumo.get('total_disponivel', 0),
+            'produtos_unicos': df['ARTIGO'].nunique(),
+            'cores_unicas': df['COR'].nunique(),
+            'arquivos_processados': len(csv_files),
+            'arquivo_csv': csv_filename,
+            'arquivo_excel': excel_filename,
+            'arquivo_json': json_filename,
+            'mensagem': mensagem
+        }
+        
+        logger.info("Consolidação concluída com sucesso!")
+        
+        return resultado, mensagem
+        
+    except Exception as e:
+        logger.error(f"Erro na consolidação: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None, str(e)
+
+# Função principal para execução direta
+if __name__ == "__main__":
+    resultado, mensagem = consolidar_dados_estruturados()
+    if resultado:
+        print(f"✅ Consolidação concluída: {mensagem}")
+        print(f"📊 Registros: {resultado['total_registros']}")
+        print(f"📁 CSV: {resultado['arquivo_csv']}")
+        print(f"📁 Excel: {resultado['arquivo_excel']}")
+    else:
+        print(f"❌ Erro: {mensagem}")
+
+## parser_dgb.py
+# parser_dgb.py - Parser específico para HTML do DGB
+import os
+import re
+import csv
+from datetime import datetime
+from bs4 import BeautifulSoup
+import logging
+
+logger = logging.getLogger(__name__)
+
+def formatar_valor_csv(valor_str):
+    """Formata valor para CSV no padrão brasileiro"""
+    try:
+        valor_str = str(valor_str).strip().replace(' ', '')
+        
+        if not valor_str:
+            return "0,00"
+        
+        if ',' in valor_str:
+            partes = valor_str.split(',')
+            inteiro = partes[0].replace('.', '')
+            decimal = partes[1] if len(partes) > 1 else '00'
+            
+            if len(decimal) == 1:
+                decimal = decimal + '0'
+            elif len(decimal) == 0:
+                decimal = '00'
+            elif len(decimal) > 2:
+                decimal = decimal[:2]
+            
+            return f"{inteiro},{decimal}"
+        else:
+            valor_str = valor_str.replace('.', '')
+            return f"{valor_str},00"
+            
+    except Exception as e:
+        return "0,00"
+
+def parse_html_dgb_simples(html_content, produto_codigo):
+    """Parser SIMPLES e DIRETO para HTML do DGB"""
+    registros = []
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    artigo = str(produto_codigo).lstrip('0')
+    
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Remover scripts e styles
+        for script in soup(["script", "style"]):
+            script.decompose()
+        
+        # Pegar TODO o texto
+        texto_completo = soup.get_text(separator='\n')
+        
+        # Salvar texto para debug
+        debug_dir = os.path.join('data', 'debug_parser')
+        os.makedirs(debug_dir, exist_ok=True)
+        debug_file = os.path.join(debug_dir, f"parser_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+        with open(debug_file, 'w', encoding='utf-8') as f:
+            f.write(texto_completo)
+        
+        logger.info(f"📄 Texto extraído salvo em: {debug_file}")
+        
+        # Dividir em linhas
+        lines = texto_completo.split('\n')
+        lines = [line.strip() for line in lines if line.strip()]
+        
+        # Procurar pelo produto
+        produto_encontrado = False
+        descricao = f"Produto {produto_codigo}"
+        
+        for i, line in enumerate(lines):
+            # Verificar se a linha contém o produto
+            if str(produto_codigo) in line:
+                produto_encontrado = True
+                descricao = line
+                logger.info(f"✅ Produto encontrado na linha {i}: {line[:100]}")
+                
+                # Procurar por linhas de dados nas próximas 20 linhas
+                for j in range(i, min(i + 20, len(lines))):
+                    data_line = lines[j]
+                    
+                    # Verificar se é uma linha de dados
+                    if (re.match(r'^\d{2}/\d{2}/\d{4}$', data_line) or 
+                        data_line.lower() == 'pronta entrega'):
+                        
+                        previsao = data_line
+                        logger.info(f"📅 Previsão encontrada: {previsao}")
+                        
+                        # Procurar por 3 números nas próximas linhas
+                        valores_encontrados = []
+                        for k in range(j + 1, min(j + 10, len(lines))):
+                            num_line = lines[k]
+                            
+                            # Extrair números desta linha
+                            numeros = re.findall(r'[\d.,]+', num_line)
+                            if numeros:
+                                valores_encontrados.extend(numeros)
+                                logger.info(f"🔢 Números encontrados: {numeros}")
+                            
+                            # Se já temos 3 números, para
+                            if len(valores_encontrados) >= 3:
+                                break
+                        
+                        # Se encontrou 3 valores, criar registro
+                        if len(valores_encontrados) >= 3:
+                            registro = [
+                                artigo,
+                                timestamp,
+                                descricao,
+                                previsao,
+                                formatar_valor_csv(valores_encontrados[0]),
+                                formatar_valor_csv(valores_encontrados[1]),
+                                formatar_valor_csv(valores_encontrados[2])
+                            ]
+                            registros.append(registro)
+                            logger.info(f"✅ Registro criado: {previsao} | {valores_encontrados[0]}, {valores_encontrados[1]}, {valores_encontrados[2]}")
+        
+        if not produto_encontrado:
+            logger.warning(f"⚠️ Produto {produto_codigo} não encontrado no texto")
+        
+        logger.info(f"📊 Total de registros extraídos: {len(registros)}")
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no parser simples: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+    
+    return registros
+
+def criar_csv_direto(html_path, produto_codigo, output_dir='data/csv'):
+    """Cria CSV diretamente de um arquivo HTML"""
+    try:
+        # Ler HTML
+        with open(html_path, 'r', encoding='utf-8', errors='ignore') as f:
+            html_content = f.read()
+        
+        # Usar parser simples
+        registros = parse_html_dgb_simples(html_content, produto_codigo)
+        
+        if not registros:
+            logger.warning(f"⚠️ Nenhum registro extraído para {produto_codigo}")
+            return None
+        
+        # Criar CSV
+        os.makedirs(output_dir, exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"produto_{produto_codigo}_TINTO_{timestamp}.csv"
+        filepath = os.path.join(output_dir, filename)
+        
+        # Cabeçalho
+        cabecalho = ['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante', 
+                    'Previsão', 'Estoque', 'Pedidos', 'Disponível']
+        
+        with open(filepath, 'w', newline='', encoding='utf-8-sig') as csvfile:
+            writer = csv.writer(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(cabecalho)
+            
+            for registro in registros:
+                writer.writerow(registro)
+        
+        logger.info(f"✅ CSV criado: {filename} ({len(registros)} registros)")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao criar CSV direto: {e}")
+        return None
+
+# Teste direto
+if __name__ == "__main__":
+    # Testar com um arquivo específico
+    import sys
+    
+    if len(sys.argv) > 1:
+        produto = sys.argv[1]
+        html_file = f"data/debug/debug_html_{produto}_*.html"
+        
+        import glob
+        files = glob.glob(html_file)
+        
+        if files:
+            criar_csv_direto(files[0], produto)
+        else:
+            print(f"❌ Arquivo não encontrado: {html_file}")
+    else:
+        print("Uso: python parser_dgb.py <código_produto>")
+
+
+## produtos.txt
+14,15,19,20,23,24,27,28,29,30
+
+## requirements.txt
+webdriver-manager==4.0.1
+requests==2.31.0
+lxml==4.9.3
+python-dotenv==1.0.0
+openpyxl==3.1.2
+numpy==1.24.3
+Pillow==10.1.0  # Para processamento de imagens
+
+## templates/index.html
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DGB COMEX - Sistema de Scraping com FullPage Screenshot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0,0,0,.1);
+            border: none;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .card-header {
+            font-weight: 600;
+        }
+        .progress {
+            height: 25px;
+            border-radius: 12px;
+        }
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        .log-container {
+            height: 300px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .log-entry {
+            border-left: 3px solid #0d6efd;
+            padding-left: 10px;
+            margin-bottom: 5px;
+            color: white;
+        }
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            color: #fff;
+            opacity: 0.7;
+        }
+        .nav-tabs .nav-link.active {
+            background: transparent;
+            border-bottom: 2px solid #0d6efd;
+            opacity: 1;
+        }
+        .status-card {
+            transition: all 0.3s ease;
+        }
+        .status-card:hover {
+            transform: translateY(-5px);
+        }
+        .bi {
+            margin-right: 5px;
+        }
+        .footer {
+            border-top: 1px solid #dee2e6;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .processing {
+            animation: pulse 2s infinite;
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #results-container {
+            background: rgba(0,0,0,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .saldo-positivo {
+            color: #198754;
+            font-weight: bold;
+        }
+        .saldo-negativo {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .download-btn {
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .screenshot-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .screenshot-image {
+            max-width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .screenshot-image:hover {
+            transform: scale(1.02);
+        }
+        .modal-xl {
+            max-width: 95%;
+        }
+        .modal-body {
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+        .screenshot-thumb {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .screenshot-thumb:hover {
+            transform: scale(1.1);
+        }
+        .fullpage-badge {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            font-size: 0.8em;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        .session-controls {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .session-id {
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .btn-group-xs > .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        .manual-controls {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-database"></i> DGB COMEX Scraper com FullPage Screenshot
+            </a>
+            <div class="text-light">
+                <i class="bi bi-clock"></i> <span id="current-time"></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Cards de Status -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-list-check"></i> Produtos</h5>
+                        <h2 id="total-products">0</h2>
+                        <p class="card-text">Na fila de processamento</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-check-circle"></i> Processados</h5>
+                        <h2 id="processed-products">0</h2>
+                        <p class="card-text">Com sucesso</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-exclamation-triangle"></i> Com Erros</h5>
+                        <h2 id="error-products">0</h2>
+                        <p class="card-text">Necessitam atenção</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card status-card text-white bg-info">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-clock-history"></i> Tempo</h5>
+                        <h2 id="elapsed-time">00:00</h2>
+                        <p class="card-text">Decorrido</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controles Principais -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-gear"></i> Controles
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label text-white">Lista de Produtos</label>
+                            <textarea class="form-control bg-dark text-white" id="products-list" rows="5" placeholder="Ex: 13,14,15,16,17"></textarea>
+                            <small class="form-text text-muted">Códigos separados por vírgula</small>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mb-3">
+                            <button class="btn btn-outline-primary" onclick="loadProducts()">
+                                <i class="bi bi-arrow-clockwise"></i> Carregar Lista
+                            </button>
+                            <button class="btn btn-outline-success" onclick="saveProducts()">
+                                <i class="bi bi-save"></i> Salvar Lista
+                            </button>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" id="start-btn" onclick="startScraping()">
+                                <i class="bi bi-play-fill"></i> Iniciar Scraping Completo
+                            </button>
+                            <button class="btn btn-danger btn-lg" id="stop-btn" onclick="stopScraping()" disabled>
+                                <i class="bi bi-stop-fill"></i> Parar Scraping
+                            </button>
+                            <button class="btn btn-warning btn-lg" onclick="createCSVsFromDebug()">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Criar CSVs do Debug
+                            </button>
+                            <button class="btn btn-info btn-lg" onclick="consolidateData()">
+                                <i class="bi bi-file-earmark-zip"></i> Consolidar Dados
+                            </button>
+                            <button class="btn btn-warning mt-2" onclick="debugScraping()">
+                                <i class="bi bi-bug"></i> Debug Scraping
+                            </button>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-info w-100" onclick="testLogin()">
+                                <i class="bi bi-shield-check"></i> Testar Login
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progresso -->
+                <div class="card mt-4">
+                    <div class="card-header bg-secondary text-white">
+                        <i class="bi bi-graph-up"></i> Progresso
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-3">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p class="text-white mb-1"><strong>Status:</strong> <span id="status-text">Pronto</span></p>
+                        <p class="text-white mb-1"><strong>Produto Atual:</strong> <span id="current-product">-</span></p>
+                        <p class="text-white mb-0"><strong>Mensagem:</strong> <span id="status-message">Aguardando início...</span></p>
+                    </div>
+                </div>
+
+                <!-- Screenshot Rápido -->
+                <div class="card mt-4">
+                    <div class="card-header bg-danger text-white">
+                        <i class="bi bi-camera-fill"></i> Screenshot Rápido
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control bg-dark text-white" id="quick-screenshot-product" placeholder="Código do produto">
+                            <button class="btn btn-warning" onclick="takeQuickFullpageScreenshot()">
+                                <i class="bi bi-camera"></i> FullPage
+                            </button>
+                        </div>
+                        <small class="text-muted">Tira screenshot fullpage de um produto específico (NAVEGADOR PERMANECE ABERTO)</small>
+                    </div>
+                </div>
+
+                <!-- Controles do Navegador -->
+                <div class="card mt-4 manual-controls">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-tools"></i> Controle Manual do Navegador
+                    </div>
+                    <div class="card-body">
+                        <p class="text-white"><small>Use estes controles para gerenciar manualmente o navegador</small></p>
+                        <div class="btn-group w-100 mb-2">
+                            <button class="btn btn-outline-light" onclick="openLoginPage()">
+                                <i class="bi bi-door-open"></i> Abrir Login
+                            </button>
+                            <button class="btn btn-outline-light" onclick="checkBrowserStatus()">
+                                <i class="bi bi-info-circle"></i> Status
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="closeBrowserSession()">
+                                <i class="bi bi-x-circle"></i> Fechar
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-light">Sessão atual:</small><br>
+                            <span id="current-session-id" class="session-id">Nenhuma sessão ativa</span>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-light">Status do navegador:</small><br>
+                            <span id="browser-status" class="badge bg-secondary">Desconhecido</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <!-- Abas -->
+                <div class="card">
+                    <div class="card-header bg-dark">
+                        <ul class="nav nav-tabs card-header-tabs" id="main-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs">
+                                    <i class="bi bi-terminal"></i> Logs
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files">
+                                    <i class="bi bi-folder"></i> Arquivos
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="screenshots-tab" data-bs-toggle="tab" data-bs-target="#screenshots">
+                                    <i class="bi bi-camera"></i> Screenshots
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results">
+                                    <i class="bi bi-table"></i> Resultados
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config">
+                                    <i class="bi bi-sliders"></i> Configurações
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <!-- Tab Logs -->
+                            <div class="tab-pane fade show active" id="logs" role="tabpanel">
+                                <div class="log-container">
+                                    <div id="log-content"></div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-light mt-2" onclick="clearLogs()">
+                                    <i class="bi bi-trash"></i> Limpar Logs
+                                </button>
+                            </div>
+                            
+                            <!-- Tab Arquivos -->
+                            <div class="tab-pane fade" id="files" role="tabpanel">
+                                <ul class="nav nav-tabs">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" data-bs-toggle="tab" href="#csv-files">CSV</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-bs-toggle="tab" href="#debug-files">Debug</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" data-bs-toggle="tab" href="#consolidated-files">Consolidados</a>
+                                    </li>
+                                </ul>
+                                
+                                <div class="tab-content mt-3">
+                                    <div class="tab-pane fade show active" id="csv-files">
+                                        <div class="file-list" id="csv-list">
+                                            <!-- Lista de CSVs será carregada aqui -->
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="debug-files">
+                                        <div class="file-list" id="debug-list">
+                                            <!-- Lista de arquivos de debug será carregada aqui -->
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane fade" id="consolidated-files">
+                                        <div class="file-list" id="consolidated-list">
+                                            <!-- Lista de consolidados será carregada aqui -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tab Screenshots -->
+                            <div class="tab-pane fade" id="screenshots" role="tabpanel">
+                                <div class="d-flex justify-content-between mb-3">
+                                    <h5 class="text-white">Screenshots FullPage</h5>
+                                    <button class="btn btn-sm btn-outline-light" onclick="loadScreenshotList()">
+                                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                                    </button>
+                                </div>
+                                <div id="screenshot-list" class="row">
+                                    <!-- Screenshots serão carregados aqui -->
+                                </div>
+                                <div id="screenshot-loader" class="text-center d-none">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando...</span>
+                                    </div>
+                                    <p class="mt-2 text-white">Carregando screenshots...</p>
+                                </div>
+                                <div id="no-screenshots" class="text-center text-muted d-none">
+                                    <i class="bi bi-camera" style="font-size: 3rem;"></i>
+                                    <p class="mt-2">Nenhum screenshot encontrado</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Tab Resultados -->
+                            <div class="tab-pane fade" id="results" role="tabpanel">
+                                <div id="results-container">
+                                    <div class="alert alert-info">
+                                        <h5><i class="bi bi-info-circle"></i> Fluxo de Trabalho com FullPage Screenshot</h5>
+                                        <ol>
+                                            <li><strong>Passo 1:</strong> Clique em <button class="btn btn-sm btn-success"><i class="bi bi-play-fill"></i> Iniciar Scraping Completo</button> para coletar dados, gerar debug e screenshots fullpage</li>
+                                            <li><strong>Passo 2:</strong> Visualize os screenshots na aba <button class="btn btn-sm btn-secondary"><i class="bi bi-camera"></i> Screenshots</button></li>
+                                            <li><strong>Passo 3:</strong> Clique em <button class="btn btn-sm btn-warning"><i class="bi bi-file-earmark-spreadsheet"></i> Criar CSVs do Debug</button> para converter os arquivos de debug em CSV</li>
+                                            <li><strong>Passo 4:</strong> Clique em <button class="btn btn-sm btn-info"><i class="bi bi-file-earmark-zip"></i> Consolidar Dados</button> para gerar relatórios consolidados</li>
+                                        </ol>
+                                        <p class="mb-0"><small>Os screenshots fullpage são salvos em <code>data/screenshots/fullpage/</code></small></p>
+                                    </div>
+                                </div>
+                                <table class="table table-dark table-hover" id="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Produto</th>
+                                            <th>Status</th>
+                                            <th>Arquivos</th>
+                                            <th>Screenshots</th>
+                                            <th>Data</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="results-body">
+                                        <!-- Resultados serão inseridos aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Tab Configurações -->
+                            <div class="tab-pane fade" id="config" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card bg-dark">
+                                            <div class="card-body">
+                                                <h5 class="card-title text-white">Configurações do Sistema</h5>
+                                                <div class="alert alert-warning">
+                                                    <i class="bi bi-exclamation-triangle"></i> As configurações são carregadas do arquivo <code>.env</code>. Para alterar, edite o arquivo manualmente.
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">Usuário DGB</label>
+                                                    <input type="text" class="form-control bg-dark text-white" id="config-user" value="tiago" readonly>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">URL Login</label>
+                                                    <input type="text" class="form-control bg-dark text-white" id="config-login-url" value="http://sistemadgb.4pu.com:90/dgb/login.jsf" readonly>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">URL Estoque</label>
+                                                    <input type="text" class="form-control bg-dark text-white" id="config-estoque-url" value="http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf" readonly>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label text-white">Status do Sistema</label>
+                                                    <div class="alert alert-success">
+                                                        <i class="bi bi-check-circle"></i> Sistema operacional. Credenciais carregadas do arquivo <code>.env</code>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Resumo -->
+                <div class="card mt-4">
+                    <div class="card-header bg-info text-white">
+                        <i class="bi bi-info-circle"></i> Informações do Sistema
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="text-white"><strong>Última Execução:</strong> <span id="last-execution">Nenhuma</span></p>
+                                <p class="text-white"><strong>Arquivos Debug:</strong> <span id="total-debug-files">0</span></p>
+                                <p class="text-white"><strong>Arquivos CSV:</strong> <span id="total-csv-files">0</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="text-white"><strong>Status do Sistema:</strong> <span class="badge bg-success" id="system-status">Operacional</span></p>
+                                <p class="text-white"><strong>Usuário Configurado:</strong> <span id="config-usuario">tiago</span></p>
+                                <p class="text-white"><strong>Screenshots FullPage:</strong> <span id="total-screenshots">0</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para visualização de screenshot -->
+    <div class="modal fade" id="screenshotModal" tabindex="-1" aria-labelledby="screenshotModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title text-white" id="screenshotModalLabel">Screenshot FullPage</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status" id="modal-spinner">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <img id="modal-screenshot-image" class="img-fluid d-none" style="max-width: 100%;">
+                </div>
+                <div class="modal-footer">
+                    <a id="modal-download-link" class="btn btn-outline-light" download>
+                        <i class="bi bi-download"></i> Baixar
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para informações da sessão -->
+    <div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title text-white" id="sessionModalLabel">Informações da Sessão</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-white">Sessão Atual</label>
+                        <input type="text" class="form-control bg-dark text-white" id="modal-session-id" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Status</label>
+                        <div id="modal-session-status" class="badge bg-secondary">Desconhecido</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">URL Atual</label>
+                        <input type="text" class="form-control bg-dark text-white" id="modal-current-url" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Título da Página</label>
+                        <input type="text" class="form-control bg-dark text-white" id="modal-page-title" readonly>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-info" onclick="refreshSessionInfo()">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer mt-5 py-3 bg-dark text-center">
+        <div class="container">
+            <span class="text-muted">Sistema de Web Scraping DGB COMEX com FullPage Screenshot &copy; 2024 - <span id="footer-time"></span></span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        let statusPolling = null;
+        let logs = [];
+        let screenshotModal = null;
+        let sessionModal = null;
+        let currentSessionId = null;
+        let browserStatus = 'disconnected';
+        
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleString('pt-BR');
+            document.getElementById('current-time').textContent = timeStr;
+            document.getElementById('footer-time').textContent = timeStr;
+            document.getElementById('last-update').textContent = timeStr;
+        }
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('pt-BR');
+            const logEntry = {
+                timestamp,
+                message,
+                type
+            };
+            
+            logs.unshift(logEntry);
+            
+            if (logs.length > 100) {
+                logs.pop();
+            }
+            
+            updateLogDisplay();
+        }
+        
+        function updateLogDisplay() {
+            const logContent = document.getElementById('log-content');
+            let html = '';
+            
+            logs.forEach(log => {
+                let badgeClass = 'bg-secondary';
+                if (log.type === 'success') badgeClass = 'bg-success';
+                if (log.type === 'error') badgeClass = 'bg-danger';
+                if (log.type === 'warning') badgeClass = 'bg-warning';
+                if (log.type === 'debug') badgeClass = 'bg-info';
+                
+                html += `
+                    <div class="log-entry">
+                        <span class="badge ${badgeClass}">${log.timestamp}</span>
+                        <span class="ms-2">${log.message}</span>
+                    </div>
+                `;
+            });
+            
+            logContent.innerHTML = html;
+            
+            // Auto-scroll para o topo
+            logContent.scrollTop = 0;
+        }
+        
+        function clearLogs() {
+            logs = [];
+            updateLogDisplay();
+            addLog('Logs limpos', 'info');
+        }
+        
+        function loadProducts() {
+            fetch('/api/get-products')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('products-list').value = data.produtos;
+                    updateProductCount();
+                    addLog('Lista de produtos carregada', 'success');
+                })
+                .catch(error => {
+                    addLog('Erro ao carregar produtos: ' + error, 'error');
+                });
+        }
+        
+        function saveProducts() {
+            const produtos = document.getElementById('products-list').value;
+            
+            fetch('/api/update-products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ produtos: produtos })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('Lista de produtos salva', 'success');
+                    updateProductCount();
+                } else {
+                    addLog('Erro ao salvar produtos: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('Erro ao salvar produtos: ' + error, 'error');
+            });
+        }
+        
+        function updateProductCount() {
+            const produtos = document.getElementById('products-list').value;
+            const count = produtos.split(',').filter(p => p.trim()).length;
+            document.getElementById('total-products').textContent = count;
+        }
+        
+        function startScraping() {
+            // Primeiro salvar a lista de produtos
+            saveProducts();
+            
+            setTimeout(() => {
+                fetch('/api/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('start-btn').disabled = true;
+                        document.getElementById('stop-btn').disabled = false;
+                        addLog('Scraping completo iniciado (gera debug + fullpage screenshot)...', 'success');
+                        startStatusPolling();
+                    } else {
+                        addLog('Erro ao iniciar scraping: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    addLog('Erro ao iniciar scraping: ' + error, 'error');
+                });
+            }, 500);
+        }
+        
+        function stopScraping() {
+            fetch('/api/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('stop-btn').disabled = true;
+                addLog('Scraping interrompido', 'warning');
+            })
+            .catch(error => {
+                addLog('Erro ao parar scraping: ' + error, 'error');
+            });
+        }
+        
+        function takeQuickFullpageScreenshot() {
+            const produto = document.getElementById('quick-screenshot-product').value.trim();
+            
+            if (!produto) {
+                alert('Digite um código de produto');
+                return;
+            }
+            
+            addLog(`Tirando screenshot fullpage do produto ${produto}...`, 'info');
+            
+            fetch(`/api/fullpage-screenshot/${produto}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog(`✅ Screenshot fullpage criado: ${data.filename}`, 'success');
+                    addLog(`📝 Navegador mantido aberto. Sessão: ${data.session_id}`, 'info');
+                    
+                    // Armazenar session_id
+                    currentSessionId = data.session_id;
+                    updateSessionDisplay();
+                    
+                    // Mostrar preview
+                    previewScreenshot(data.filename, data.preview_url);
+                    
+                    // Atualizar lista de screenshots
+                    setTimeout(() => {
+                        loadScreenshotList();
+                    }, 1000);
+                    
+                } else {
+                    addLog(`❌ Erro ao criar screenshot: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao criar screenshot: ' + error, 'error');
+            });
+        }
+        
+        function createCSVsFromDebug() {
+            addLog('Criando CSVs a partir dos arquivos de debug...', 'info');
+            
+            fetch('/api/create-all-csvs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ CSVs criados com sucesso!', 'success');
+                    
+                    // Mostrar resultados
+                    const resultados = data.resultados || [];
+                    let html = '<div class="alert alert-success"><h5><i class="bi bi-file-earmark-spreadsheet"></i> Resultado da Geração de CSVs</h5>';
+                    html += '<table class="table table-sm">';
+                    html += '<thead><tr><th>Produto</th><th>Status</th><th>Arquivo</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    resultados.forEach(r => {
+                        const status = r.success ? 
+                            '<span class="badge bg-success">Sucesso</span>' : 
+                            '<span class="badge bg-danger">Falha</span>';
+                        
+                        const arquivo = r.filename ? 
+                            `<a href="/download/csv/${r.filename}" class="btn btn-sm btn-outline-info"><i class="bi bi-download"></i> ${r.filename}</a>` :
+                            r.error || '-';
+                        
+                        html += `<tr><td>${r.produto}</td><td>${status}</td><td>${arquivo}</td></tr>`;
+                    });
+                    
+                    html += '</tbody></table>';
+                    html += `<p><strong>Resumo:</strong> ${data.message}</p>`;
+                    html += '</div>';
+                    
+                    document.getElementById('results-container').innerHTML = html;
+                    
+                    // Atualizar lista de arquivos
+                    loadFileLists();
+                    
+                } else {
+                    addLog('❌ Erro ao criar CSVs: ' + data.error, 'error');
+                    document.getElementById('results-container').innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle"></i> Erro ao criar CSVs</h5>
+                            <p>${data.error || 'Erro desconhecido'}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao criar CSVs: ' + error, 'error');
+                document.getElementById('results-container').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-triangle"></i> Erro de Conexão</h5>
+                        <p>Não foi possível conectar ao servidor para criar CSVs.</p>
+                        <p><small>Erro: ${error}</small></p>
+                    </div>
+                `;
+            });
+        }
+        
+        function consolidateData() {
+            addLog('Iniciando consolidação avançada...', 'info');
+            
+            // Mostrar indicador de carregamento
+            document.getElementById('results-container').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Processando...</span>
+                    </div>
+                    <p class="mt-2">Processando arquivos CSV e gerando relatórios estruturados...</p>
+                    <p class="text-muted"><small>Isso pode levar alguns minutos dependendo da quantidade de dados</small></p>
+                </div>
+            `;
+            
+            fetch('/api/consolidate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Consolidação concluída com sucesso!', 'success');
+                    document.getElementById('results-container').innerHTML = `
+                        <div class="alert alert-success">
+                            <h5><i class="bi bi-check-circle"></i> Consolidação Concluída</h5>
+                            <p>${data.message || 'Processamento concluído'}</p>
+                            <pre class="bg-dark text-light p-3 rounded mt-2" style="max-height: 200px; overflow-y: auto;">
+${data.output || 'Nenhum detalhe disponível'}
+                            </pre>
+                        </div>
+                    `;
+                    
+                    // Atualizar lista de arquivos
+                    loadFileLists();
+                    
+                } else {
+                    addLog('❌ Erro na consolidação: ' + data.error, 'error');
+                    document.getElementById('results-container').innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle"></i> Erro na Consolidação</h5>
+                            <p>${data.error || 'Erro desconhecido'}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro na consolidação: ' + error, 'error');
+                document.getElementById('results-container').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-triangle"></i> Erro de Conexão</h5>
+                        <p>Não foi possível conectar ao servidor para consolidar os dados.</p>
+                        <p><small>Erro: ${error}</small></p>
+                    </div>
+                `;
+            });
+        }
+        
+        function testLogin() {
+            addLog('Testando login com credenciais do .env...', 'info');
+            
+            fetch('/api/test-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Login testado com sucesso!', 'success');
+                } else {
+                    addLog('❌ Falha no login: ' + (data.error || 'Verifique as credenciais no arquivo .env'), 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao testar login: ' + error, 'error');
+            });
+        }
+        
+        function startStatusPolling() {
+            if (statusPolling) {
+                clearInterval(statusPolling);
+            }
+            
+            statusPolling = setInterval(() => {
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(status => {
+                        updateStatusDisplay(status);
+                    })
+                    .catch(error => {
+                        console.error('Erro ao buscar status:', error);
+                    });
+            }, 2000);
+        }
+        
+        function updateStatusDisplay(status) {
+            // Progresso
+            document.getElementById('progress-bar').style.width = status.progress + '%';
+            document.getElementById('progress-bar').textContent = status.progress + '%';
+            
+            // Status
+            document.getElementById('status-text').textContent = status.running ? 'Em Execução' : 'Parado';
+            document.getElementById('current-product').textContent = status.current || '-';
+            document.getElementById('status-message').textContent = status.message || '-';
+            
+            // Botões
+            document.getElementById('start-btn').disabled = status.running;
+            document.getElementById('stop-btn').disabled = !status.running;
+            
+            // Contadores
+            if (status.results) {
+                const processed = status.results.filter(r => r.success).length;
+                const errors = status.results.filter(r => !r.success).length;
+                
+                document.getElementById('processed-products').textContent = processed;
+                document.getElementById('error-products').textContent = errors;
+                
+                // Atualizar tabela de resultados
+                updateResultsTable(status.results);
+                
+                // Atualizar última execução
+                if (status.start_time) {
+                    const startDate = new Date(status.start_time);
+                    document.getElementById('last-execution').textContent = startDate.toLocaleString('pt-BR');
+                }
+            }
+            
+            // Tempo decorrido
+            if (status.start_time) {
+                const start = new Date(status.start_time);
+                const now = new Date();
+                const diff = Math.floor((now - start) / 1000);
+                const minutes = Math.floor(diff / 60);
+                const seconds = diff % 60;
+                document.getElementById('elapsed-time').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            // Se não está mais rodando, parar polling
+            if (!status.running && statusPolling) {
+                setTimeout(() => {
+                    clearInterval(statusPolling);
+                    statusPolling = null;
+                }, 5000);
+                
+                // Carregar listas de arquivos
+                loadFileLists();
+                loadScreenshotList();
+            }
+        }
+        
+        function updateResultsTable(results) {
+            const tbody = document.getElementById('results-body');
+            tbody.innerHTML = '';
+            
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                
+                let statusBadge = result.success ? 
+                    '<span class="badge bg-success">Sucesso</span>' : 
+                    '<span class="badge bg-danger">Erro</span>';
+                
+                let arquivos = '';
+                if (result.arquivo_html) {
+                    const htmlFile = result.arquivo_html.split('/').pop();
+                    arquivos += `<a href="/download/debug/${htmlFile}" class="btn btn-sm btn-outline-secondary me-1" title="HTML"><i class="bi bi-file-earmark-code"></i></a>`;
+                }
+                if (result.arquivo_texto) {
+                    const txtFile = result.arquivo_texto.split('/').pop();
+                    arquivos += `<a href="/download/debug/${txtFile}" class="btn btn-sm btn-outline-secondary" title="Texto"><i class="bi bi-file-earmark-text"></i></a>`;
+                }
+                
+                let screenshots = '';
+                if (result.screenshot_fullpage) {
+                    const screenshotFile = result.screenshot_fullpage.split('/').pop();
+                    screenshots += `<button class="btn btn-sm btn-outline-warning me-1" onclick="previewScreenshot('${screenshotFile}')" title="FullPage Screenshot">
+                        <i class="bi bi-camera-fill"></i>
+                    </button>`;
+                }
+                if (result.screenshot_normal) {
+                    const normalFile = result.screenshot_normal.split('/').pop();
+                    screenshots += `<a href="/download/screenshots/${normalFile}" class="btn btn-sm btn-outline-info" title="Screenshot Normal" download>
+                        <i class="bi bi-camera"></i>
+                    </a>`;
+                }
+                
+                row.innerHTML = `
+                    <td>${result.codigo}</td>
+                    <td>${statusBadge}</td>
+                    <td>${arquivos || '-'}</td>
+                    <td>${screenshots || '-'}</td>
+                    <td>${new Date(result.timestamp).toLocaleString('pt-BR')}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        function loadFileLists() {
+            // Carregar CSVs
+            fetch('/api/files/csv')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('csv-list');
+                    list.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            const item = document.createElement('div');
+                            item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom border-secondary';
+                            item.innerHTML = `
+                                <div>
+                                    <i class="bi bi-file-earmark-spreadsheet text-info"></i>
+                                    <span class="ms-2 text-white">${file.name}</span>
+                                    <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
+                                </div>
+                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            `;
+                            list.appendChild(item);
+                        });
+                        document.getElementById('total-csv-files').textContent = data.files.length;
+                    } else {
+                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo CSV</p>';
+                    }
+                });
+            
+            // Carregar Debug
+            fetch('/api/files/debug')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('debug-list');
+                    list.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            const item = document.createElement('div');
+                            item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom border-secondary';
+                            
+                            let icon = 'bi-file-earmark';
+                            if (file.name.endsWith('.html')) icon = 'bi-file-earmark-code text-warning';
+                            if (file.name.endsWith('.txt')) icon = 'bi-file-earmark-text text-info';
+                            if (file.name.endsWith('.json')) icon = 'bi-file-earmark-text text-success';
+                            
+                            item.innerHTML = `
+                                <div>
+                                    <i class="bi ${icon}"></i>
+                                    <span class="ms-2 text-white">${file.name}</span>
+                                    <small class="text-muted ms-2">(${formatBytes(file.size)})</small>
+                                </div>
+                                <a href="${file.path}" class="btn btn-sm btn-outline-light">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            `;
+                            list.appendChild(item);
+                        });
+                        document.getElementById('total-debug-files').textContent = data.files.length;
+                    } else {
+                        list.innerHTML = '<p class="text-center text-muted">Nenhum arquivo de debug</p>';
+                    }
+                });
+        }
+        
+        function loadScreenshotList() {
+            const loader = document.getElementById('screenshot-loader');
+            const noScreenshots = document.getElementById('no-screenshots');
+            const list = document.getElementById('screenshot-list');
+            
+            loader.classList.remove('d-none');
+            list.classList.add('d-none');
+            noScreenshots.classList.add('d-none');
+            
+            fetch('/api/files/screenshots')
+                .then(response => response.json())
+                .then(data => {
+                    loader.classList.add('d-none');
+                    list.classList.remove('d-none');
+                    list.innerHTML = '';
+                    
+                    if (data.files && data.files.length > 0) {
+                        const fullpageScreenshots = data.files.filter(f => f.type === 'fullpage');
+                        document.getElementById('total-screenshots').textContent = fullpageScreenshots.length;
+                        
+                        if (fullpageScreenshots.length > 0) {
+                            fullpageScreenshots.forEach(file => {
+                                const col = document.createElement('div');
+                                col.className = 'col-md-4 mb-3';
+                                
+                                col.innerHTML = `
+                                    <div class="card bg-dark">
+                                        <div class="card-body text-center">
+                                            <div class="position-relative">
+                                                <img src="/api/screenshot/preview/${file.name}" 
+                                                     class="screenshot-thumb mb-2"
+                                                     onclick="previewScreenshot('${file.name}')"
+                                                     alt="${file.name}"
+                                                     onerror="this.src='data:image/svg+xml;charset=UTF-8,<svg width=\"100\" height=\"100\" xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"100\" height=\"100\" fill=\"%23212529\"/><text x=\"50\" y=\"50\" font-family=\"Arial\" font-size=\"14\" fill=\"%23fff\" text-anchor=\"middle\" dy=\".3em\">Carregando...</text></svg>'">
+                                                <span class="fullpage-badge position-absolute top-0 start-0 m-1">FULLPAGE</span>
+                                            </div>
+                                            <h6 class="text-white mb-1">${file.name}</h6>
+                                            <small class="text-muted">${formatBytes(file.size)}</small>
+                                            <div class="mt-2">
+                                                <button class="btn btn-sm btn-outline-light me-1" onclick="previewScreenshot('${file.name}')">
+                                                    <i class="bi bi-eye"></i> Ver
+                                                </button>
+                                                <a href="${file.path}" class="btn btn-sm btn-outline-info" download>
+                                                    <i class="bi bi-download"></i> Baixar
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                
+                                list.appendChild(col);
+                            });
+                        } else {
+                            noScreenshots.classList.remove('d-none');
+                            list.innerHTML = '';
+                        }
+                    } else {
+                        noScreenshots.classList.remove('d-none');
+                    }
+                })
+                .catch(error => {
+                    loader.classList.add('d-none');
+                    list.innerHTML = '<div class="col-12 text-center text-muted"><p>Erro ao carregar screenshots</p></div>';
+                });
+        }
+        
+        function previewScreenshot(filename, previewUrl = null) {
+            if (!previewUrl) {
+                previewUrl = `/api/screenshot/preview/${filename}`;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('screenshotModal'));
+            const modalImage = document.getElementById('modal-screenshot-image');
+            const modalSpinner = document.getElementById('modal-spinner');
+            const modalDownloadLink = document.getElementById('modal-download-link');
+            const modalTitle = document.getElementById('screenshotModalLabel');
+            
+            modalTitle.textContent = `Screenshot: ${filename}`;
+            modalImage.classList.add('d-none');
+            modalSpinner.classList.remove('d-none');
+            modalDownloadLink.href = `/download/screenshots/fullpage/${filename}`;
+            modalDownloadLink.download = filename;
+            
+            // Carregar imagem
+            modalImage.onload = function() {
+                modalSpinner.classList.add('d-none');
+                modalImage.classList.remove('d-none');
+            };
+            
+            modalImage.onerror = function() {
+                modalSpinner.classList.add('d-none');
+                modalImage.alt = 'Erro ao carregar imagem';
+                modalImage.src = 'data:image/svg+xml;charset=UTF-8,<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="600" fill="%23212529"/><text x="400" y="300" font-family="Arial" font-size="20" fill="%23fff" text-anchor="middle" dy=".3em">Erro ao carregar screenshot</text></svg>';
+                modalImage.classList.remove('d-none');
+            };
+            
+            modalImage.src = previewUrl;
+            modal.show();
+        }
+        
+        function openLoginPage() {
+            addLog('Abrindo página de login no navegador...', 'info');
+            
+            fetch('/api/manual-browser-control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: 'open' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Navegador aberto na página de login', 'success');
+                    currentSessionId = data.session_id;
+                    updateSessionDisplay();
+                    checkBrowserStatus();
+                } else {
+                    addLog(`❌ Erro ao abrir navegador: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao abrir navegador: ' + error, 'error');
+            });
+        }
+        
+        function checkBrowserStatus() {
+            if (!currentSessionId) {
+                updateBrowserStatus('disconnected', 'Nenhuma sessão ativa');
+                return;
+            }
+            
+            fetch(`/api/keep-alive/${currentSessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateBrowserStatus('connected', 'Conectado');
+                    
+                    // Obter informações detalhadas
+                    fetch('/api/manual-browser-control', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ action: 'status' })
+                    })
+                    .then(response => response.json())
+                    .then(statusData => {
+                        if (statusData.success) {
+                            updateBrowserStatus('active', `Ativo - ${statusData.title || 'Sem título'}`);
+                        }
+                    });
+                    
+                } else {
+                    updateBrowserStatus('disconnected', 'Sessão expirada');
+                    currentSessionId = null;
+                    updateSessionDisplay();
+                }
+            })
+            .catch(error => {
+                updateBrowserStatus('error', 'Erro de conexão');
+            });
+        }
+        
+        function closeBrowserSession() {
+            if (!currentSessionId) {
+                addLog('Nenhuma sessão ativa para fechar', 'warning');
+                return;
+            }
+            
+            addLog('Fechando navegador...', 'info');
+            
+            fetch(`/api/close-session/${currentSessionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Navegador fechado com sucesso', 'success');
+                    currentSessionId = null;
+                    updateSessionDisplay();
+                    updateBrowserStatus('disconnected', 'Desconectado');
+                } else {
+                    addLog(`❌ Erro ao fechar navegador: ${data.error}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro ao fechar navegador: ' + error, 'error');
+            });
+        }
+        
+        function updateSessionDisplay() {
+            const sessionIdElement = document.getElementById('current-session-id');
+            if (currentSessionId) {
+                sessionIdElement.textContent = currentSessionId.substring(0, 20) + '...';
+                sessionIdElement.title = currentSessionId;
+                sessionIdElement.classList.remove('text-muted');
+                sessionIdElement.classList.add('text-light');
+            } else {
+                sessionIdElement.textContent = 'Nenhuma sessão ativa';
+                sessionIdElement.title = '';
+                sessionIdElement.classList.remove('text-light');
+                sessionIdElement.classList.add('text-muted');
+            }
+        }
+        
+        function updateBrowserStatus(status, message) {
+            const statusElement = document.getElementById('browser-status');
+            let badgeClass = 'bg-secondary';
+            
+            switch(status) {
+                case 'connected':
+                case 'active':
+                    badgeClass = 'bg-success';
+                    break;
+                case 'disconnected':
+                    badgeClass = 'bg-danger';
+                    break;
+                case 'error':
+                    badgeClass = 'bg-warning';
+                    break;
+            }
+            
+            statusElement.className = `badge ${badgeClass}`;
+            statusElement.textContent = message;
+            browserStatus = status;
+        }
+        
+        function showSessionInfo() {
+            if (!currentSessionId) {
+                alert('Nenhuma sessão ativa');
+                return;
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('sessionModal'));
+            document.getElementById('modal-session-id').value = currentSessionId;
+            
+            // Obter informações atualizadas
+            fetch('/api/manual-browser-control', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action: 'status' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('modal-session-status').className = 'badge bg-success';
+                    document.getElementById('modal-session-status').textContent = 'Ativo';
+                    document.getElementById('modal-current-url').value = data.url || 'N/A';
+                    document.getElementById('modal-page-title').value = data.title || 'N/A';
+                } else {
+                    document.getElementById('modal-session-status').className = 'badge bg-danger';
+                    document.getElementById('modal-session-status').textContent = 'Inativo';
+                    document.getElementById('modal-current-url').value = 'N/A';
+                    document.getElementById('modal-page-title').value = 'N/A';
+                }
+            });
+            
+            modal.show();
+        }
+        
+        function refreshSessionInfo() {
+            showSessionInfo();
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function debugScraping() {
+            addLog('🔍 Iniciando scraping em modo debug...', 'info');
+            
+            fetch('/api/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog('✅ Scraping iniciado em modo debug', 'success');
+                    addLog('📋 Verifique os logs no terminal para ver o progresso detalhado', 'info');
+                } else {
+                    addLog('❌ Erro ao iniciar scraping: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                addLog('❌ Erro de conexão: ' + error, 'error');
+            });
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            loadProducts();
+            loadFileLists();
+            loadScreenshotList();
+            
+            // Configurar valores fixos
+            document.getElementById('config-user').value = 'tiago';
+            document.getElementById('config-login-url').value = 'http://sistemadgb.4pu.com:90/dgb/login.jsf';
+            document.getElementById('config-estoque-url').value = 'http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf';
+            document.getElementById('config-usuario').textContent = 'tiago';
+            
+            // Inicializar modais
+            screenshotModal = new bootstrap.Modal(document.getElementById('screenshotModal'));
+            sessionModal = new bootstrap.Modal(document.getElementById('sessionModal'));
+            
+            // Iniciar polling de status
+            startStatusPolling();
+            
+            addLog('Sistema inicializado com sucesso', 'success');
+            addLog('Funcionalidade FullPage Screenshot ativada', 'info');
+            addLog('Navegador mantido aberto entre requisições', 'info');
+            addLog('Pronto para iniciar scraping com captura completa de tela', 'success');
+            
+            // Verificar se há arquivos existentes
+            fetch('/api/files/screenshots')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.files && data.files.length > 0) {
+                        const fullpageCount = data.files.filter(f => f.type === 'fullpage').length;
+                        addLog(`Encontrados ${fullpageCount} screenshots fullpage`, 'info');
+                    }
+                });
+            
+            // Atualizar display da sessão
+            updateSessionDisplay();
+            updateBrowserStatus('disconnected', 'Desconectado');
+        });
+    </script>
+</body>
+</html>
+
+
+# .env
+# Configurações DGB COMEX
+DGB_USUARIO=tiago
+DGB_SENHA=Esmeralda852456#&
+DGB_URL_LOGIN=http://sistemadgb.4pu.com:90/dgb/login.jsf
+DGB_URL_ESTOQUE=http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf
+FLASK_SECRET_KEY=dgb-comex-scraper-secret-2024
+
+# Configurações do Scraping
+SCRAPING_DELAY=2
+SCRAPING_TIMEOUT=30
+SCRAPING_HEADLESS=False
+
+# Configurações do Sistema
+CSV_DELIMITER=;
+CSV_ENCODING=utf-8-sig
+PDF_PAGE_SIZE=landscape(A4)
+
+# Configurações da Extração
+PROCESS_ALL_COLORS=True
+EXTRACT_COLOR_DETAILS=True
+VALIDATE_NUMERIC_DATA=True
