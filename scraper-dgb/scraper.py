@@ -69,8 +69,14 @@ class DGBScraper:
             login_button.click()
             time.sleep(5)
             
-            logger.info("Login realizado com sucesso!")
-            return True
+            # Verificar se login foi bem-sucedido
+            current_url = self.driver.current_url
+            if "login" not in current_url and "logout" not in current_url:
+                logger.info("Login realizado com sucesso!")
+                return True
+            else:
+                logger.error("Login falhou - ainda na página de login")
+                return False
             
         except Exception as e:
             logger.error(f"Erro no login: {e}")
@@ -106,6 +112,9 @@ class DGBScraper:
         try:
             logger.info(f"Pesquisando produto {codigo}...")
             
+            # Limpar campos primeiro
+            self.clear_form_fields()
+            
             # Preencher produto
             produto_field = self.driver.find_element(By.ID, "produto")
             produto_field.clear()
@@ -120,7 +129,16 @@ class DGBScraper:
             pesquisar_button = self.driver.find_element(By.ID, "j_idt67")
             pesquisar_button.click()
             
-            time.sleep(5)
+            # Aguardar resultados
+            time.sleep(8)  # Aumentar tempo de espera
+            
+            # Verificar se há resultados
+            try:
+                # Verificar se há a mensagem de total
+                self.driver.find_element(By.ID, "estoqueTotal")
+                logger.info("Resultados encontrados para o produto")
+            except:
+                logger.warning("Possivelmente nenhum resultado encontrado")
             
             # Obter HTML
             html = self.driver.page_source
@@ -140,6 +158,19 @@ class DGBScraper:
                 'error': str(e)
             }
     
+    def clear_form_fields(self):
+        """Limpa todos os campos do formulário"""
+        try:
+            fields = ['produto', 'situacao', 'cor', 'desenho', 'variante']
+            for field_id in fields:
+                try:
+                    field = self.driver.find_element(By.ID, field_id)
+                    field.clear()
+                except:
+                    pass
+        except:
+            pass
+    
     def save_html_for_debug(self, html_content, produto_codigo):
         """Salva HTML para debug"""
         try:
@@ -157,14 +188,32 @@ class DGBScraper:
             return None
     
     def create_csv_from_html(self, html_content, produto_codigo):
-        """Cria CSV a partir do HTML (método de instância)"""
+        """Cria CSV a partir do HTML usando o novo parser"""
         try:
-            # Parsear HTML
-            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+            # Salvar HTML para debug primeiro
+            self.save_html_for_debug(html_content, produto_codigo)
+            
+            # Usar o parser específico
+            registros = parser_dgb.parse_dgb_completo(html_content, produto_codigo)
+            
+            # Se não encontrou dados reais, tentar parser de emergência
+            dados_reais = False
+            for registro in registros:
+                if registro[4] != "0,00" or registro[5] != "0,00" or registro[6] != "0,00":
+                    dados_reais = True
+                    break
+            
+            if not dados_reais:
+                logger.warning(f"Nenhum dado real encontrado para {produto_codigo}, tentando parser de emergência...")
+                registros = parser_dgb.parse_emergencia_simples(html_content, produto_codigo)
             
             if not registros:
                 logger.warning(f"Nenhum registro extraído para {produto_codigo}")
-                return None
+                
+                # Criar registro vazio para manter a estrutura
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                artigo = str(produto_codigo).lstrip('0')
+                registros = [[artigo, timestamp, f"Produto {produto_codigo} - Sem dados", "N/A", "0,00", "0,00", "0,00"]]
             
             # Criar pasta csv se não existir
             os.makedirs('csv', exist_ok=True)
@@ -181,19 +230,40 @@ class DGBScraper:
                                'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
                 writer.writerows(registros)
             
-            logger.info(f"CSV criado: {filename} ({len(registros)} registros)")
+            logger.info(f"✅ CSV criado: {filename} ({len(registros)} registros)")
             return filename
             
         except Exception as e:
-            logger.error(f"Erro ao criar CSV para {produto_codigo}: {e}")
-            return None
+            logger.error(f"❌ Erro ao criar CSV para {produto_codigo}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            
+            # Criar arquivo CSV de erro
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"produto_{produto_codigo}_{timestamp}.csv"
+            filepath = os.path.join('csv', filename)
+            
+            try:
+                with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+                    writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                    writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                                   'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+                    writer.writerow([str(produto_codigo).lstrip('0'), 
+                                   datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                   f"Produto {produto_codigo} - ERRO: {str(e)[:100]}",
+                                   "Erro", "0,00", "0,00", "0,00"])
+                
+                logger.info(f"📄 CSV de erro criado: {filename}")
+                return filename
+            except:
+                return None
     
     @staticmethod
     def create_csv_from_html_static(html_content, produto_codigo):
         """Método estático para criar CSV a partir de HTML"""
         try:
             # Parsear HTML
-            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+            registros = parser_dgb.parse_dgb_completo(html_content, produto_codigo)
             
             if not registros:
                 logger.warning(f"Nenhum registro extraído para {produto_codigo}")
@@ -235,7 +305,7 @@ def create_csv_from_html(html_content, produto_codigo):
     """
     try:
         # Parsear HTML
-        registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+        registros = parser_dgb.parse_dgb_completo(html_content, produto_codigo)
         
         if not registros:
             logger.warning(f"Nenhum registro extraído para {produto_codigo}")
@@ -276,7 +346,7 @@ def run_scraping_thread(status_dict):
         status_dict['message'] = f'Processando {len(produtos)} produtos'
         status_dict['csv_files'] = []  # Lista de CSVs criados
         
-        # Iniciar scraper
+        # Iniciar scraper (headless=False para ver o que está acontecendo)
         scraper = DGBScraper(headless=False)
         
         # Login
@@ -304,14 +374,13 @@ def run_scraping_thread(status_dict):
             status_dict['progress'] = int((i / len(produtos)) * 100)
             status_dict['message'] = f'Processando {produto} ({i}/{len(produtos)})'
             
+            logger.info(f"--- Processando produto {produto} ---")
+            
             # Pesquisar produto
             resultado = scraper.search_product(produto)
             
-            # Se obteve HTML com sucesso, salvar para debug e criar CSV
+            # Se obteve HTML com sucesso, criar CSV
             if resultado['success'] and 'html' in resultado:
-                # Salvar HTML para debug
-                scraper.save_html_for_debug(resultado['html'], produto)
-                
                 # Criar CSV
                 csv_filename = scraper.create_csv_from_html(resultado['html'], produto)
                 
@@ -327,7 +396,7 @@ def run_scraping_thread(status_dict):
             status_dict['results'].append(resultado)
             
             # Pequena pausa entre consultas
-            time.sleep(2)
+            time.sleep(3)
         
         # Resumo final
         sucessos = sum(1 for r in status_dict['results'] if r.get('success'))
@@ -341,6 +410,8 @@ def run_scraping_thread(status_dict):
         
     except Exception as e:
         logger.error(f"Erro no scraping: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         status_dict['message'] = f'❌ Erro: {str(e)}'
     
     finally:

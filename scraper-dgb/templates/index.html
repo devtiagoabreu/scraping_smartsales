@@ -59,6 +59,9 @@
                         <button class="btn btn-info w-100 mb-2" onclick="consolidate()">
                             Consolidar Dados
                         </button>
+                        <button class="btn btn-outline-info w-100 mb-2" onclick="testParser()">
+                            Testar Parser
+                        </button>
                     </div>
                 </div>
 
@@ -127,6 +130,36 @@
         function clearLogs() {
             logs = [];
             updateLogs();
+        }
+
+        async function testParser() {
+            const produto = prompt("Digite o código do produto para testar o parser:");
+            if (!produto) return;
+            
+            addLog(`Testando parser para produto ${produto}...`, 'info');
+            
+            try {
+                const response = await fetch(`/api/test-parser/${produto}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✅ Parser testado: ${data.resultados.parser_completo.registros} registros encontrados`, 'success');
+                    
+                    // Mostrar detalhes
+                    let detalhes = `Arquivo: ${data.arquivo}\n`;
+                    detalhes += `Tamanho HTML: ${data.tamanho_html} caracteres\n\n`;
+                    
+                    for (const [metodo, info] of Object.entries(data.resultados)) {
+                        detalhes += `${metodo}: ${info.registros} registros\n`;
+                    }
+                    
+                    alert(detalhes);
+                } else {
+                    addLog(`❌ Erro: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Erro ao testar parser: ${error}`, 'error');
+            }
         }
         
         async function loadProducts() {

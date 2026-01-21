@@ -147,7 +147,7 @@ def create_csvs():
                 html = result['html']
                 
                 # Parsear HTML e criar CSV
-                registros = parser_dgb.parse_html_dgb_simples(html, produto)
+                registros = parser_dgb.parse_dgb_completo(html, produto)
                 
                 if registros:
                     filename = scraper.DGBScraper.create_csv_from_html_static(html, produto)
@@ -251,6 +251,7 @@ def debug_produto(produto):
                 <div class="header">
                     <h2>Debug: Produto {produto}</h2>
                     <p>Arquivo: {latest}</p>
+                    <p><a href="/api/test-parser/{produto}" target="_blank">Testar Parser</a></p>
                 </div>
                 
                 <div class="content">
@@ -264,6 +265,73 @@ def debug_produto(produto):
             return f"Nenhum arquivo de debug encontrado para produto {produto}"
     except Exception as e:
         return f"Erro ao carregar debug: {str(e)}"
+
+@app.route('/api/test-parser/<produto>')
+def test_parser(produto):
+    """Testa o parser com o último HTML capturado"""
+    try:
+        # Encontrar o último arquivo de debug deste produto
+        debug_files = [f for f in os.listdir('debug') if f.startswith(f'debug_produto_{produto}_')]
+        
+        if not debug_files:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo de debug encontrado'})
+        
+        debug_files.sort(reverse=True)
+        latest_file = debug_files[0]
+        
+        with open(os.path.join('debug', latest_file), 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Testar TODOS os métodos de parsing
+        
+        # Método 1: Parser específico
+        registros_especifico = parser_dgb.parse_html_dgb_simples(html_content, produto)
+        
+        # Método 2: Parser agressivo
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        artigo = str(produto).lstrip('0')
+        registros_agressivo = parser_dgb.parse_html_agressivo_especifico(html_content, produto, timestamp, artigo)
+        
+        # Método 3: Parser estrutura exata
+        registros_estrutura = parser_dgb.parse_html_estrutura_exata(html_content, produto)
+        
+        # Método 4: Parser emergência
+        registros_emergencia = parser_dgb.parse_emergencia_simples(html_content, produto)
+        
+        # Método 5: Parser completo
+        registros_completo = parser_dgb.parse_dgb_completo(html_content, produto)
+        
+        return jsonify({
+            'success': True,
+            'arquivo': latest_file,
+            'tamanho_html': len(html_content),
+            'resultados': {
+                'parser_especifico': {
+                    'registros': len(registros_especifico),
+                    'amostra': registros_especifico[:3] if registros_especifico else []
+                },
+                'parser_agressivo': {
+                    'registros': len(registros_agressivo),
+                    'amostra': registros_agressivo[:3] if registros_agressivo else []
+                },
+                'parser_estrutura': {
+                    'registros': len(registros_estrutura),
+                    'amostra': registros_estrutura[:3] if registros_estrutura else []
+                },
+                'parser_emergencia': {
+                    'registros': len(registros_emergencia),
+                    'amostra': registros_emergencia[:3] if registros_emergencia else []
+                },
+                'parser_completo': {
+                    'registros': len(registros_completo),
+                    'amostra': registros_completo[:3] if registros_completo else []
+                }
+            },
+            'recomendado': 'parser_completo' if registros_completo else 'parser_emergencia'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/dashboard')
 def get_dashboard():
@@ -288,6 +356,47 @@ def get_dashboard():
             'is_running': scraping_status['running']
         })
         
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/test-scrape-single/<produto>', methods=['POST'])
+def test_scrape_single(produto):
+    """Testa o scraping de um único produto"""
+    try:
+        scraper_instance = scraper.DGBScraper(headless=False)
+        
+        # Login
+        if not scraper_instance.login():
+            scraper_instance.close()
+            return jsonify({'success': False, 'error': 'Falha no login'})
+        
+        # Navegar para estoque
+        if not scraper_instance.navigate_to_stock():
+            scraper_instance.close()
+            return jsonify({'success': False, 'error': 'Falha ao acessar estoque'})
+        
+        # Pesquisar produto
+        resultado = scraper_instance.search_product(produto)
+        
+        if resultado['success'] and 'html' in resultado:
+            # Criar CSV
+            csv_filename = scraper_instance.create_csv_from_html(resultado['html'], produto)
+            
+            scraper_instance.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Produto {produto} processado',
+                'csv_file': csv_filename,
+                'html_size': len(resultado['html'])
+            })
+        else:
+            scraper_instance.close()
+            return jsonify({
+                'success': False,
+                'error': resultado.get('error', 'Erro desconhecido')
+            })
+            
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
