@@ -141,7 +141,40 @@ class DGBScraper:
             }
     
     def create_csv_from_html(self, html_content, produto_codigo):
-        """Cria CSV a partir do HTML"""
+        """Cria CSV a partir do HTML (método de instância)"""
+        try:
+            # Parsear HTML
+            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+            
+            if not registros:
+                logger.warning(f"Nenhum registro extraído para {produto_codigo}")
+                return None
+            
+            # Criar pasta csv se não existir
+            os.makedirs('csv', exist_ok=True)
+            
+            # Nome do arquivo
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"produto_{produto_codigo}_{timestamp}.csv"
+            filepath = os.path.join('csv', filename)
+            
+            # Escrever CSV
+            with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+                writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                               'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+                writer.writerows(registros)
+            
+            logger.info(f"CSV criado: {filename} ({len(registros)} registros)")
+            return filename
+            
+        except Exception as e:
+            logger.error(f"Erro ao criar CSV para {produto_codigo}: {e}")
+            return None
+    
+    @staticmethod
+    def create_csv_from_html_static(html_content, produto_codigo):
+        """Método estático para criar CSV a partir de HTML"""
         try:
             # Parsear HTML
             registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
@@ -177,6 +210,42 @@ class DGBScraper:
         if self.driver:
             self.driver.quit()
             logger.info("Navegador fechado")
+
+# Função auxiliar para criar CSV (pode ser chamada sem instância da classe)
+def create_csv_from_html(html_content, produto_codigo):
+    """
+    Função independente para criar CSV a partir de HTML
+    Compatível com chamadas de outras partes do sistema
+    """
+    try:
+        # Parsear HTML
+        registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
+        
+        if not registros:
+            logger.warning(f"Nenhum registro extraído para {produto_codigo}")
+            return None
+        
+        # Criar pasta csv se não existir
+        os.makedirs('csv', exist_ok=True)
+        
+        # Nome do arquivo
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"produto_{produto_codigo}_{timestamp}.csv"
+        filepath = os.path.join('csv', filename)
+        
+        # Escrever CSV
+        with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                           'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+            writer.writerows(registros)
+        
+        logger.info(f"CSV criado: {filename} ({len(registros)} registros)")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar CSV para {produto_codigo}: {e}")
+        return None
 
 def run_scraping_thread(status_dict):
     """Função executada na thread - ATUALIZADA para salvar CSVs"""
@@ -224,7 +293,15 @@ def run_scraping_thread(status_dict):
             
             # Se obteve HTML com sucesso, criar CSV
             if resultado['success'] and 'html' in resultado:
+                # Usar o método de instância
                 csv_filename = scraper.create_csv_from_html(resultado['html'], produto)
+                
+                # Alternativamente, usar o método estático:
+                # csv_filename = DGBScraper.create_csv_from_html_static(resultado['html'], produto)
+                
+                # Ou usar a função independente:
+                # csv_filename = create_csv_from_html(resultado['html'], produto)
+                
                 if csv_filename:
                     resultado['csv_file'] = csv_filename
                     status_dict['csv_files'].append(csv_filename)
