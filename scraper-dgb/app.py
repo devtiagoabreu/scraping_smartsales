@@ -1,4 +1,4 @@
-# app.py - ATUALIZADO com funcionalidade completa
+# app.py - ATUALIZADO com funcionalidade completa e debug
 import os
 import json
 import threading
@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 
 # Pastas
 CSV_FOLDER = 'csv'
+DEBUG_FOLDER = 'debug'
 os.makedirs(CSV_FOLDER, exist_ok=True)
+os.makedirs(DEBUG_FOLDER, exist_ok=True)
 
 # Status global
 scraping_status = {
@@ -148,7 +150,7 @@ def create_csvs():
                 registros = parser_dgb.parse_html_dgb_simples(html, produto)
                 
                 if registros:
-                    filename = scraper.DGBScraper.create_csv_from_html(None, html, produto)
+                    filename = scraper.DGBScraper.create_csv_from_html_static(html, produto)
                     if filename:
                         csv_files_created.append({
                             'produto': produto,
@@ -209,11 +211,15 @@ def list_files():
         return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
     except Exception as e:
         return jsonify({'files': [], 'error': str(e)})
-    
+
 @app.route('/api/debug/<produto>')
 def debug_produto(produto):
     """Página de debug para ver HTML"""
     try:
+        # Verificar se pasta debug existe
+        if not os.path.exists('debug'):
+            return "Pasta debug não encontrada"
+        
         # Carregar o último HTML salvo deste produto
         debug_files = [f for f in os.listdir('debug') if f.startswith(f'debug_produto_{produto}_')]
         
@@ -224,15 +230,40 @@ def debug_produto(produto):
             with open(os.path.join('debug', latest), 'r', encoding='utf-8') as f:
                 html_content = f.read()
             
-            return render_template('debug.html', 
-                                 produto=produto,
-                                 html_content=html_content,
-                                 filename=latest)
+            # Renderizar página de debug simples
+            return f'''
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Debug - Produto {produto}</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                    .header {{ background: #f0f0f0; padding: 10px; margin-bottom: 20px; }}
+                    .content {{ border: 1px solid #ccc; padding: 10px; max-height: 600px; overflow: auto; }}
+                    pre {{ white-space: pre-wrap; word-wrap: break-word; }}
+                    .back {{ margin-bottom: 20px; }}
+                </style>
+            </head>
+            <body>
+                <div class="back">
+                    <a href="/">← Voltar</a>
+                </div>
+                <div class="header">
+                    <h2>Debug: Produto {produto}</h2>
+                    <p>Arquivo: {latest}</p>
+                </div>
+                
+                <div class="content">
+                    <h3>HTML Capturado:</h3>
+                    <pre>{html_content[:5000]}...</pre>
+                </div>
+            </body>
+            </html>
+            '''
         else:
-            return "Nenhum arquivo de debug encontrado para este produto"
-    except:
-        return "Erro ao carregar debug"
-    
+            return f"Nenhum arquivo de debug encontrado para produto {produto}"
+    except Exception as e:
+        return f"Erro ao carregar debug: {str(e)}"
 
 @app.route('/api/dashboard')
 def get_dashboard():
@@ -272,11 +303,13 @@ if __name__ == '__main__':
             logger.info(f"   {var}=seu_valor")
         exit(1)
     
-    # Criar pasta csv se não existir
+    # Criar pastas se não existirem
     os.makedirs('csv', exist_ok=True)
+    os.makedirs('debug', exist_ok=True)
     
     logger.info("✅ Sistema iniciado com sucesso!")
     logger.info(f"👤 Usuário: {os.getenv('DGB_USUARIO')}")
     logger.info(f"📁 Pasta CSV: {os.path.abspath('csv')}")
+    logger.info(f"🐛 Pasta Debug: {os.path.abspath('debug')}")
     
     app.run(host='0.0.0.0', port=5000, debug=True)

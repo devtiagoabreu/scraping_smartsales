@@ -1,4 +1,4 @@
-# scraper.py - ATUALIZADO para salvar CSVs automaticamente
+# scraper.py - ATUALIZADO para salvar CSVs automaticamente e HTML de debug
 import os
 import time
 import csv
@@ -140,26 +140,21 @@ class DGBScraper:
                 'error': str(e)
             }
     
-    
     def save_html_for_debug(self, html_content, produto_codigo):
-    """Salva HTML para debug"""
-    try:
-        import os
-        os.makedirs('debug', exist_ok=True)
-        from datetime import datetime
-        filename = f"debug_produto_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        filepath = os.path.join('debug', filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        logger.info(f"✅ HTML salvo para debug: {filename}")
-        return filename
-    except Exception as e:
-        logger.error(f"Erro ao salvar HTML debug: {e}")
-        return None
-    
-    
+        """Salva HTML para debug"""
+        try:
+            os.makedirs('debug', exist_ok=True)
+            filename = f"debug_produto_{produto_codigo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+            filepath = os.path.join('debug', filename)
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            
+            logger.info(f"✅ HTML salvo para debug: {filename}")
+            return filename
+        except Exception as e:
+            logger.error(f"Erro ao salvar HTML debug: {e}")
+            return None
     
     def create_csv_from_html(self, html_content, produto_codigo):
         """Cria CSV a partir do HTML (método de instância)"""
@@ -311,25 +306,14 @@ def run_scraping_thread(status_dict):
             
             # Pesquisar produto
             resultado = scraper.search_product(produto)
-
-             # SALVAR HTML PARA DEBUG
+            
+            # Se obteve HTML com sucesso, salvar para debug e criar CSV
             if resultado['success'] and 'html' in resultado:
-                # Salvar HTML para análise
+                # Salvar HTML para debug
                 scraper.save_html_for_debug(resultado['html'], produto)
                 
                 # Criar CSV
                 csv_filename = scraper.create_csv_from_html(resultado['html'], produto)
-            
-            # Se obteve HTML com sucesso, criar CSV
-            if resultado['success'] and 'html' in resultado:
-                # Usar o método de instância
-                csv_filename = scraper.create_csv_from_html(resultado['html'], produto)
-                
-                # Alternativamente, usar o método estático:
-                # csv_filename = DGBScraper.create_csv_from_html_static(resultado['html'], produto)
-                
-                # Ou usar a função independente:
-                # csv_filename = create_csv_from_html(resultado['html'], produto)
                 
                 if csv_filename:
                     resultado['csv_file'] = csv_filename

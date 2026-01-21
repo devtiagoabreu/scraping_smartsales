@@ -1,0 +1,2610 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head id="j_idt2">
+
+<meta http-equiv="content-Type" content="text/html; charset=UTF-8">
+<link href="css/default.css?ver=30" rel="stylesheet" type="text/css">
+<link href="css/animation.css?ver=1" rel="stylesheet" type="text/css">
+<link href="css/vanillaCalendar-min.css?ver=2" rel="stylesheet" type="text/css">
+<link rel="icon" type="image/png" sizes="128x128" href="images/logo-home-screen-128.png">
+<link rel="shortcut icon" type="image/x-icon" href="images/favicon.ico">
+<link rel="shortcut icon" sizes="120x120" href="images/logo-home-screen-120.png">
+<link rel="shortcut icon" sizes="128x128" href="images/logo-home-screen-128.png">
+<link rel="shortcut icon" sizes="144x144" href="images/logo-home-screen-144.png">
+<link rel="shortcut icon" sizes="180x180" href="images/logo-home-screen-180.png">
+<link rel="shortcut icon" sizes="192x192" href="images/logo-home-screen-192.png">
+<link rel="apple-touch-icon" sizes="120x120" href="images/logo-home-screen-120.png">
+<link rel="apple-touch-icon" sizes="128x128" href="images/logo-home-screen-128.png">
+<link rel="apple-touch-icon" sizes="144x144" href="images/logo-home-screen-144.png">
+<link rel="apple-touch-icon" sizes="180x180" href="images/logo-home-screen-180.png">
+<link rel="apple-touch-icon" sizes="192x192" href="images/logo-home-screen-192.png">
+<link rel="apple-touch-icon-precomposed" sizes="120x120" href="images/logo-home-screen-120.png">
+<link rel="apple-touch-icon-precomposed" sizes="128x128" href="images/logo-home-screen-128.png">
+<link rel="apple-touch-icon-precomposed" sizes="144x144" href="images/logo-home-screen-144.png">
+<link rel="apple-touch-icon-precomposed" sizes="180x180" href="images/logo-home-screen-180.png">
+<link rel="apple-touch-icon-precomposed" sizes="192x192" href="images/logo-home-screen-192.png">
+
+<meta name="apple-mobile-web-app-status-bar-style" content="#3b3838">	
+<link rel="manifest" href="manifest.json">
+
+<script type="text/javascript" src="js/default.js?ver=18"></script>
+<script type="text/javascript" src="js/vanillaCalendar-min.js?ver=2"></script>
+<script type="text/javascript" src="js/jquery-1.11.2.min.js"></script>
+<script type="text/javascript">window.onpageshow = function(event) { if (event.persisted) { hideAjax(); } };</script>
+	<title>DGB&nbsp;-&nbsp;Consulta de previsão de estoque</title><script type="text/javascript" src="/dgb/javax.faces.resource/jsf.js.jsf?ln=javax.faces"></script></head><body onload="focusOnFirstElement(); ">
+<div class="topo">
+	<div class="flt-esq p10 m-p30">
+		<a href="dashboard.jsf" class="logotipo" title="DGB"></a>
+	</div>
+	<div class="flt-dir p30 m-p70 dir">
+		<div>
+			<input type="hidden" id="empresaVigenteCd" value="13">
+			<div class="container-2">
+				<div class="fltDir">
+					<div> 
+						<a href="javascript:void(0)" onclick="abreModal('modalTrocaEmpresa')" class="botao fonte-pequena pad3" title="Trocar Empresa">13 DGB COMERCIO IMPORTACAO E EXPORTACAO LTDA</a>
+					</div>
+					<b> <a href="trocaSenha.jsf" id="pNm" style="margin-right:10px">Tiago</a> </b><a href="logout.jsf">Sair</a>
+				</div>
+				<div class="flt-dir container-2-x">
+					<a class="chat-icone" href="javascript:void(0)" onclick="expandCollapseChat()" title="Exibir/Ocultar Usuários"></a>
+					</div>
+					<div class="clear"></div>
+					</div>
+			</div>
+		</div>
+		<div class="flt-esq p60 m-p100">
+			<div id="menu-container">
+
+<div class="mt-10">
+	<div class="navbar">
+	<div class="dropdown">
+		<button class="dropbtn" onclick="showMenu(1000)">Acesso Rápido<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+		<div class="dropdown-content " id="menu-1000">
+			<a href="http://sistemadgb.4pu.com:90/dgb/dashboard.jsf" onclick="showAjax()">Dashboard</a><a href="http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf" onclick="showAjax()" title="Consulta de previsão de estoque">Previsão de estoque</a><a href="http://sistemadgb.4pu.com:90/dgb/config.jsf" onclick="showAjax()" title="Configurações gerais">Configuração</a><a href="http://sistemadgb.4pu.com:90/dgb/usuCons.jsf" onclick="showAjax()" title="Configuração de usuários do sistema">Usuários</a>
+		</div>
+	</div>
+		<div class="dropdown">
+			<button class="dropbtn" onclick="showMenu(0)">Clientes<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+			<div class="dropdown-content" id="menu-0"> <a href="http://sistemadgb.4pu.com:90/dgb/duplicataConsulta.jsf" type="duplicataConsulta" title="Consulta de duplicata de clientes" onclick="showAjax()">Consulta Cliente/Duplicatas</a> <a href="http://sistemadgb.4pu.com:90/dgb/clienteConsulta.jsf" type="clienteConsulta" title="Consulta de clientes. Exportar para Excel" onclick="showAjax()">Consulta de Clientes</a> <a href="http://sistemadgb.4pu.com:90/dgb/indicaLoja.jsf" type="indicaLoja" title="Indicação de loja para compra de produtos" onclick="showAjax()">Indicar Loja</a> <a href="http://sistemadgb.4pu.com:90/dgb/atendCli.jsf" type="atendCli" title="Informação de clientes" onclick="showAjax()">Informação do cliente</a> <a href="http://sistemadgb.4pu.com:90/dgb/vendCliLista.jsf" type="vendCliLista" title="Lista de clientes dos representantes" onclick="showAjax()">Listagem de Clientes</a> <a href="http://sistemadgb.4pu.com:90/dgb/maioresClientesConsulta.jsf" type="maioresClientesConsulta" title="Consulta de maiores clientes em faturamento" onclick="showAjax()">Maiores Clientes</a> <a href="http://sistemadgb.4pu.com:90/dgb-app/sac-consulta?uid=iJpa9vHc2Xa4%2Fm6AWKNh%2FA%3D%3D" title="SAC" onclick="showAjax()">SAC</a>
+		  	</div>
+		</div>
+		<div class="dropdown">
+			<button class="dropbtn" onclick="showMenu(1)">Representantes<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+			<div class="dropdown-content" id="menu-1"> <a href="http://sistemadgb.4pu.com:90/dgb/vendComis.jsf" type="vendComis" title="Comissão de representantes" onclick="showAjax()">Comissão</a> <a href="http://sistemadgb.4pu.com:90/dgb/vendComisProdutoNotaFiscal.jsf" type="vendComisProdutoNotaFiscal" title="Comissão de produto por nota fiscal" onclick="showAjax()">Comissão de produto por nota fiscal</a> <a href="http://sistemadgb.4pu.com:90/dgb/vendComisProduto.jsf" type="vendComisProduto" title="Comissão por produto" onclick="showAjax()">Comissão por produto</a> <a href="http://sistemadgb.4pu.com:90/dgb/vendedorConsulta.jsf" type="vendedorConsulta" title="Consulta de vendedores. Exportar para Excel" onclick="showAjax()">Consulta de Vendedores</a> <a href="http://sistemadgb.4pu.com:90/dgb/vendPendCons.jsf" type="vendPendCons" title="Consulta de pendências de representantes" onclick="showAjax()">Consultar Pendência/Representante</a> <a href="http://sistemadgb.4pu.com:90/dgb/metaFaturamentoComissaoVendedorPontuacaoConsulta.jsf" type="metaFaturamentoComissaoVendedorPontuacaoConsulta" title="Consulta e visualização de pontuação de meta de faturamento e comissão" onclick="showAjax()">Expectativas e pontuação</a> <a href="http://sistemadgb.4pu.com:90/dgb/indicaVend.jsf" type="indicaVend" title="Indicação de representante" onclick="showAjax()">Indicar Representante</a> <a href="http://sistemadgb.4pu.com:90/dgb/atendVend.jsf" type="atendVend" title="Informação de representantes" onclick="showAjax()">Informação de Representante</a> <a href="http://sistemadgb.4pu.com:90/dgb/maioresVendedoresConsulta.jsf" type="maioresVendedoresConsulta" title="Consulta de maiores vendedores em faturamento" onclick="showAjax()">Maiores Vendedores</a> <a href="http://sistemadgb.4pu.com:90/dgb/vendPend.jsf" type="vendPend" title="Pendências de representantes" onclick="showAjax()">Pendência/Representante</a>
+		  	</div>
+		</div>
+		<div class="dropdown">
+			<button class="dropbtn" onclick="showMenu(2)">Pedidos<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+			<div class="dropdown-content" id="menu-2"> <a href="http://sistemadgb.4pu.com:90/dgb/pedAdm.jsf" type="pedAdm" title="Administração de pedido" onclick="showAjax()">Administração</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedidoAprovacao.jsf" type="pedidoAprovacao" title="Análise de pendências para aprovação de pedidos" onclick="showAjax()">Aprovação de Pedido</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedCons.jsf" type="pedCons" title="Consulta de pedidos" onclick="showAjax()">Consultar</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedAprovCons.jsf" type="pedAprovCons" title="Informação sobre aprovação de pendências" onclick="showAjax()">Consultar Aprovação</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedConsPos.jsf" type="pedConsPos" title="Consulta de posição de pedidos" onclick="showAjax()">Consultar Posição</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedidoSaldoGerenciar.jsf" type="pedidoSaldoGerenciar" title="Gerenciamento de saldo de pedidos" onclick="showAjax()">Gerenciar Saldo</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedidoNovoSelecao.jsf" type="pedidoNovoSelecao" title="Seleção de novo pedido" onclick="showAjax()">Pedido Novo</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedSalvoConsulta.jsf" type="pedSalvoConsulta" title="Orçamentos / Pedidos salvos" onclick="showAjax()">Pedidos Salvos</a> <a href="http://sistemadgb.4pu.com:90/dgb/pedidoParadoConsulta.jsf" type="pedidoParadoConsulta" title="Pedidos parados" onclick="showAjax()">Pedidos parados</a>
+		  	</div>
+		</div>
+		<div class="dropdown">
+			<button class="dropbtn" onclick="showMenu(3)">Faturamento<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+			<div class="dropdown-content" id="menu-3"> <a href="http://sistemadgb.4pu.com:90/dgb/boletoConsulta.jsf" type="boletoConsulta" title="Consulta e visualização de boleto bancário" onclick="showAjax()">Boleto Bancário</a> <a href="http://sistemadgb.4pu.com:90/dgb/metaFaturaVendedorConsulta.jsf" type="metaFaturaVendedorConsulta" title="Meta de Faturamento de Representantes" onclick="showAjax()">Expectativa de Faturamento de Representantes</a> <a href="http://sistemadgb.4pu.com:90/dgb/notaFiscalConsulta.jsf" type="notaFiscalConsulta" title="Consulta de notas fiscais" onclick="showAjax()">Nota Fiscal / Consulta</a>
+		  	</div>
+		</div>
+		<div class="dropdown">
+			<button class="dropbtn" onclick="showMenu(4)">Estoque<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+			<div class="dropdown-content" id="menu-4"> <a href="http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoInconsistenteConsulta.jsf" type="estoquePrevisaoInconsistenteConsulta" title="Ajustar pedidos com estoques e previsões" onclick="showAjax()">Ajuste de previsão de estoque e pedidos</a> <a href="http://sistemadgb.4pu.com:90/dgb/estoqueConsulta.jsf" type="estoqueConsulta" title="Consulta de Estoque" onclick="showAjax()">Consulta de Estoque</a> <a href="http://sistemadgb.4pu.com:90/dgb/estoquePrevisaoConsulta.jsf" type="estoquePrevisaoConsulta" title="Consulta de previsão de estoque" onclick="showAjax()">Previsão de estoque</a>
+		  	</div>
+		</div>
+		<div class="dropdown">
+			<button class="dropbtn" onclick="showMenu(5)">Administração<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+			<div class="dropdown-content" id="menu-5"> <a href="http://sistemadgb.4pu.com:90/dgb/auditoriaConsulta.jsf" type="auditoriaConsulta" title="Auditoria do sistema" onclick="showAjax()">Auditoria</a> <a href="http://sistemadgb.4pu.com:90/dgb/campComisDesc.jsf" type="campComisDesc" title="Campanhas de comissão" onclick="showAjax()">Campanha de Comissão</a> <a href="http://sistemadgb.4pu.com:90/dgb/bonusCampanha.jsf" type="bonusCampanha" title="Campanha de bônus cashback" onclick="showAjax()">Campanha de bônus / cashback</a> <a href="http://sistemadgb.4pu.com:90/dgb/capaSistema.jsf" type="capaSistema" title="Configuração de capa do sistema" onclick="showAjax()">Capa do sistema</a> <a href="http://sistemadgb.4pu.com:90/dgb/condPgto.jsf" type="condPgto" title="Configuração de condição de pagamento para pedidos" onclick="showAjax()">Condição de Pagamento</a> <a href="http://sistemadgb.4pu.com:90/dgb/config.jsf" type="config" title="Configurações gerais" onclick="showAjax()">Configuração</a> <a href="http://sistemadgb.4pu.com:90/dgb/campProdAcresDesc.jsf" type="campProdAcresDesc" title="Configuração de acréscimo e desconto para analisar preços" onclick="showAjax()">Configuração de acréscimo/desconto de preços</a> <a href="http://sistemadgb.4pu.com:90/dgb/roboEmailConfig.jsf" type="roboEmailConfig" title="Configuração de email" onclick="showAjax()">Configuração de email e robôs</a> <a href="http://sistemadgb.4pu.com:90/dgb/metaFaturamentoVendedor.jsf" type="metaFaturamentoVendedor" title="Meta de Faturamento de Representantes" onclick="showAjax()">Expectativa de Faturamento de Representantes</a> <a href="http://sistemadgb.4pu.com:90/dgb/produtoFiltroCadastro.jsf" type="produtoFiltroCadastro" title="Cadastro de filtro de produto" onclick="showAjax()">Filtro de produtos</a> <a href="http://sistemadgb.4pu.com:90/dgb/estoqueProdutoFiltroCadastro.jsf" type="estoqueProdutoFiltroCadastro" title="Configuração de estoque válido" onclick="showAjax()">Filtro de produtos / Estoque</a> <a href="http://sistemadgb.4pu.com:90/dgb/grupoUsuario.jsf" type="grupoUsuario" title="Grupo de usuário e perfil de acesso" onclick="showAjax()">Grupo de Usuário</a> <a href="http://sistemadgb.4pu.com:90/dgb/produtoGradeImagemCadastro.jsf" type="produtoGradeImagemCadastro" title="Imagens dos produtos / Produto exclusivo" onclick="showAjax()">Imagem de produto / Produto exclusivo</a> <a href="http://sistemadgb.4pu.com:90/dgb/pendencia.jsf" type="pendencia" title="Pendências e etapas para aprovação de pedidos" onclick="showAjax()">Pendências / Etapas de aprovação de pedidos</a> <a href="http://sistemadgb.4pu.com:90/dgb/prodBonifTamCateg.jsf" type="prodBonifTamCateg" title="Configuração de bonificação, tamanho de peças, etc" onclick="showAjax()">Produto Bonificação/Tamanho/Categ.</a> <a href="http://sistemadgb.4pu.com:90/dgb/recado.jsf" type="recado" title="Mural de recados" onclick="showAjax()">Recados</a> <a href="http://sistemadgb.4pu.com:90/dgb/regraComisTabPrecoCons.jsf" type="regraComisTabPrecoCons" title="Regra de comissão por tabela de preço" onclick="showAjax()">Regra de Comissão por Tabela de Preço</a> <a href="http://sistemadgb.4pu.com:90/dgb/tipo1.jsf" type="tipo1" title="Configuração de tipos de consumidor, cliente, pedidos, etc" onclick="showAjax()">Tipos</a> <a href="http://sistemadgb.4pu.com:90/dgb/usuCons.jsf" type="usuCons" title="Configuração de usuários do sistema" onclick="showAjax()">Usuários</a>
+		  	</div>
+		</div>
+		<div class="dropdown">
+			<button class="dropbtn" onclick="showMenu(6)">Informativos<div class="texto-upsidedown flt-dir container-1 fonte-pequena">Δ</div></button>
+			<div class="dropdown-content" id="menu-6"> <a href="http://sistemadgb.4pu.com:90/dgb/documentoConsulta.jsf" type="documentoConsulta" title="Busca de informativos" onclick="showAjax()">Buscar Informativos</a> <a href="http://sistemadgb.4pu.com:90/dgb/documentoAreaConfig.jsf" type="documentoAreaConfig" title="Documentos para download" onclick="showAjax()">Mostrar todos +</a> <a href="http://sistemadgb.4pu.com:90/dgb/documentoAdministracao.jsf" type="documentoAdministracao" title="Painel de administração de documentos e downloads" onclick="showAjax()">Painel administração</a> <a href="http://sistemadgb.4pu.com:90/dgb/documentoAreaConfig.jsf?diretorioAtualNm=Exemplos de Uso&amp;diretorioAtual=/Exemplos-de-Uso625" type="documentoAreaConfig?faces-redirect=true&amp;amp;includeViewParams=true&amp;amp;diretorioAtualNm=Exemplos de Uso&amp;amp;diretorioAtual=/Exemplos-de-Uso625" title="Exemplos de Uso" onclick="showAjax()">Exemplos de Uso</a> <a href="http://sistemadgb.4pu.com:90/dgb/documentoAreaConfig.jsf?diretorioAtualNm=Lançamentos&amp;diretorioAtual=/Lancamentos820" type="documentoAreaConfig?faces-redirect=true&amp;amp;includeViewParams=true&amp;amp;diretorioAtualNm=Lançamentos&amp;amp;diretorioAtual=/Lancamentos820" title="Lançamentos" onclick="showAjax()">Lançamentos</a>
+		  	</div>
+		</div>
+	</div>
+	
+</div>
+
+<script>
+function showMenu(idx) {
+  hideMenus(idx);
+  carregaObjeto("menu-"+idx).classList.toggle("disp-block");
+}
+function hideMenus(idx) {
+	for (var i = 0; i < 7; i++) {
+		if (i!=idx)
+			carregaObjeto("menu-"+i).classList.remove("disp-block");
+	}
+}
+</script>
+			</div>
+		</div>
+	</div>
+	
+	<div class="conteudo"><div id="chatArea" class="container-2-y absolute right-30 p25 invisivel">
+<div class="bloco sombra expandCollapseContainer">
+<div>
+	<div class="flt-esq"><strong>Usuários Online</strong></div>
+	<div class="flt-dir">
+		<a href="javascript:void(0)" class="expandCollapseButton" onclick="expandCollapseContainer(this);" id="expandCollapseChatContainer"></a>
+	</div>
+	<div class="clear"></div>
+</div>
+
+<div id="salaChat">
+	<div id="chat" class="h350 linha container-2-y">
+		<table cellpadding="0" cellspacing="1" width="100%" border="0">
+			<tbody><tr>
+				<td class="p5">
+				<div class="atendente"></div>
+				</td>
+				<td>Eduardo</td>
+			</tr>
+			<tr>
+				<td class="p5">
+				<div class="atendente"></div>
+				</td>
+				<td>PROFECTUS GESTAO COMERCIAL LTDA</td>
+			</tr>
+			<tr>
+				<td class="p5">
+				<div class="atendente"></div>
+				</td>
+				<td>Alessandro</td>
+			</tr>
+			<tr>
+				<td class="p5">
+				<div class="atendente"></div>
+				</td>
+				<td>Tiago</td>
+			</tr>
+		</tbody></table>
+	</div>
+</div>
+
+</div></div>
+
+<script type="text/javascript">
+
+function expandCollapseChat() {
+	var chatAr = carregaObjeto('chatArea');
+	if (chatAr.className.indexOf('invisivel')>=0) {
+		chatAr.className=chatAr.className.replace('invisivel','');
+		setTimeout(function(){disparaClique(carregaObjeto('expandCollapseChatContainer'));},200);
+	} else {
+		disparaClique(carregaObjeto('expandCollapseChatContainer'));
+		setTimeout(function(){chatAr.className=chatAr.className+' invisivel';},500);
+	}
+}
+
+</script>
+
+	<div class="titPag">Consulta de previsão de estoque</div>
+<form id="form1" name="form1" method="post" action="/dgb/estoquePrevisaoConsulta.jsf" enctype="application/x-www-form-urlencoded">
+<input type="hidden" name="form1" value="form1">
+
+
+		<div class="tabela">
+			<div class="p15 m-p35">
+				<div class="campo">
+					<label for="produto">Produto</label><input id="produto" type="text" name="produto" maxlength="30" title="Código/Descrição">
+				</div>
+			</div>
+			<div class="p10 m-p30">
+				<div class="campo">
+					<label for="situacao">Situação</label><input id="situacao" type="text" name="situacao" maxlength="30" title="Código/Descrição">
+				</div>
+			</div>
+			<div class="p10 m-p35">
+				<div class="campo">
+					<label for="cor">Cor</label><input id="cor" type="text" name="cor" maxlength="30" title="Código/Descrição">
+				</div>
+			</div>
+			<div class="p10 m-p35">
+				<div class="campo">
+					<label for="desenho">Desenho</label><input id="desenho" type="text" name="desenho" maxlength="30" title="Código/Descrição">
+				</div>
+			</div>
+			<div class="p10 m-p30">
+				<div class="campo ">
+					<label for="variante">Variante</label><input id="variante" type="text" name="variante" maxlength="30" title="Código/Descrição">
+				</div>
+			</div>
+			<div class="p10 m-p35">
+				<div class="campo">
+					<label for="prevEntregaDt">Entrega</label><input id="prevEntregaDt" type="text" name="prevEntregaDt" value="21/01/2026" maxlength="10" onkeypress="return digitaDecimal(event)" onkeyup="maskDate(this)" title="Entrega a partir de">
+				</div>
+			</div>
+			<div class="p10 m-p50">
+				<div class="campo">
+					<label for="disponivelAcimaDe">Disp. Acima de</label><input name="j_idt65" value="0,00" onblur="preencheQtdeZero(this)" onfocus="apagaQtdeZero(this)" type="tel" title="Estoque Disponível Acima de" onkeypress="return digitaDecimal(event)" id="disponivelAcimaDe">
+				</div>
+			</div>
+			<div class="p10 m-p50">
+				<div class="botao-container"><input id="j_idt67" type="submit" name="j_idt67" value="Pesquisar" onclick="jsf.util.chain(this,event,'return validate()','mojarra.ab(this,event,\'action\',\'@form\',\'mensagem estoquePrevisaoList estoquePrevisaoConsultaPaginacaoList estoqueTotal\')');return false">
+				</div>
+			</div>
+			<div class="p10 m-p50 m-clear">
+				<div class="campo">
+					<label>Layout PDF</label><select id="pdfModelo" name="pdfModelo" size="1" onchange="criaLinkPdf()">	<option value="1">Mosaico</option>
+	<option value="2">Mosaico (Sem Desenho e Variante)</option>
+</select>
+				</div>
+			</div>
+			<div class="p5 m-p50">
+				<div class="botao-container">
+					<a href="gerapdf/estoque-previsao.pdf?api=zsis&amp;empCd=13&amp;produto=20&amp;situacao=TINTO&amp;cor=&amp;desenho=&amp;variante=&amp;media=pdf&amp;page=0&amp;size=9999&amp;dataInicial=2026-01-21&amp;disponivelAcimaDe=0,00&amp;layout=1" onclick="return true" target="_blank" id="verPdf" class="botao" title="Abrir PDF">Gerar</a>					
+				</div>
+			</div>
+			<div class="clear"></div>
+			
+		</div><input type="hidden" name="javax.faces.ViewState" value="-313293724529331401:3525741061020129976" autocomplete="off">
+</form>
+
+<div class="container-2-y"><div id="estoquePrevisaoList" class="lista h400">
+	
+	<table cellpadding="0" cellspacing="1" width="100%" border="0">
+		<tbody><tr>
+		<th>
+			<div class="p60 fltEsq">
+				Produto / Situação / Cor / Desenho <span>/ Variante</span>
+			</div>
+			<div class="p40 fltEsq">
+				<div class="tabela">
+					<div class="p25">Previsão</div>
+					<div class="p25 dir">Estoque&nbsp;</div>
+					<div class="p25 dir">Pedidos&nbsp;</div>
+					<div class="p25 dir">Disponível</div>
+					<div class="clear"></div>
+				</div>
+			</div>
+		</th>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00002</b> 2 - CAPPUCINO</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>28.229,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>240,10
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>27.988,90
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>10.934,40
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>10.934,40
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>16/03/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>10.000,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>10.000,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00005</b> 5 - BLACK</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>7.460,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>120,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>7.340,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>16.707,70
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>16.707,70
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00006</b> 6 - DARK BROWN</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>22.046,90
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>820,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>21.226,90
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>12.778,90
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>12.778,90
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>10.884,30
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>10.884,30
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00008</b> 8 - GREY</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>7.762,90
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>3.240,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>4.522,90
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>8.205,60
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>8.205,60
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00009</b> 9 - DARK BEIGE</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>411,40
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>411,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>0,40
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.944,60
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>359,60
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.585,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>4.177,40
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>4.177,40
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00010</b> 10 - LIGHT BROWN</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.522,20
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>1.522,20
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>5.395,60
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>5.383,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>12,60
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>20.686,30
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>12.159,30
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>8.527,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>16/03/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>35.000,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>35.000,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00011</b> 11 - BEIGE</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>764,80
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>764,80
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>23.475,10
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>22.967,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>508,10
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>16/03/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>35.000,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>22.900,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>12.100,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00019</b> 19 - ROSE</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>405,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>398,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>7,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.288,30
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>120,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.168,30
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>2.080,70
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>2.080,70
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00020</b> 20 - WINE</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>733,30
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>320,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>413,30
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.397,60
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.397,60
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.598,50
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.598,50
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00026</b> 26 - BLUE NIGHT</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.815,60
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>380,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.435,60
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>5.138,90
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>5.138,90
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>2.732,80
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>2.732,80
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00029</b> 29 - TERRA COTA</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>0,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.833,80
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>620,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.213,80
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00030</b> 30 - COBRE</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>787,30
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>120,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>667,30
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.343,90
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.343,90
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.169,10
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.169,10
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00037</b> 37 - GRANITO</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>3.942,20
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>320,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>3.622,20
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.920,80
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.920,80
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>2.738,10
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>2.738,10
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00038</b> 38 - MOSTARDA</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.179,40
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>120,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.059,40
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00041</b> 41 - MOKA</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>14.347,40
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>320,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>14.027,40
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00042</b> 42 - SAHARA</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>0,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>5.122,30
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>1.624,60
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>3.497,70
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>20/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>3.442,90
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>2.172,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.270,90
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00050</b> 50 - PURPURA</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>203,50
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>120,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>83,50
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.301,20
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.301,20
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00051</b> 51 - AZUL HORIZONTE</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>895,20
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>120,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>775,20
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.326,40
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.326,40
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00052</b> 52 - TIFFANY</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>751,50
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>120,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>631,50
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>1.337,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>1.337,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		<tr class="registro">
+		<td>
+			<div class="tabela">
+				<div class="p60 m-p100">
+					<div class="container-3-x">
+						<div title="Produto"><b>000020</b> VELUDO SILVER</div>
+						<div class="mt-10"><b>001</b> TINTO / <b>00053</b> 53 - CINZA NANQUIM</div>
+						<div class="container-1-y"><b>00000</b> LISO<span> / <b>00000</b> Padrao</span></div>
+					</div>
+				</div>
+				<div class="p40 m-p100">
+					<div class="p100 mt-5 mb-15">
+					<div class="lista linha">
+						<div class="tabela cabecalho-fixo">
+							<div class="td h100"><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>Pronta entrega
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>58.668,00
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>320,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>58.348,00
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span><span class="registro">
+								<div class="tabela">
+									<div class="p25">
+										<div class="campo-info">
+										<label>Previsão</label>
+										<span>13/02/2026
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+											<label>Estoque</label>
+											<span>19.577,20
+											</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Pedidos</label>
+										<span>0,00
+										</span>
+										</div>
+									</div>
+									<div class="p25">
+										<div class="campo-info dir">
+										<label>Disponível</label>
+										<span>19.577,20
+										</span>
+										</div>
+									</div>
+									<div class="clear"></div>
+								</div></span>
+							</div>
+						</div>
+					</div>
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div>
+		</td>
+		</tr>
+		
+	</tbody></table></div>
+<form id="j_idt115" name="j_idt115" method="post" action="/dgb/estoquePrevisaoConsulta.jsf" enctype="application/x-www-form-urlencoded">
+<input type="hidden" name="j_idt115" value="j_idt115">
+
+	<div class="p50 m-p100 dir flt-dir"><div id="estoqueTotal" class="container-3-y">
+		<div>Total Disponível <b>324.383,40</b>
+		</div></div>
+	</div>
+	<div class="p50 m-p100 flt-esq">
+
+<div class="container-3-y"><span id="estoquePrevisaoConsultaPaginacaoList" class="paginacaoList">
+			<a href="javascript:void(0)" onclick="estoquePrevisaoConsultaAplicaPaginacao(this.type);" title="Ir para página 1" type="1">1</a><a id="estoquePrevisaoConsultaAplicaPaginacao" href="#" onclick="mojarra.ab(this,event,'action','estoquePrevisaoConsultaPaginaAtual estoquePrevisaoConsultaPaginacaoListId','mensagem estoquePrevisaoList estoquePrevisaoConsultaPaginacaoList',{'onevent':function(){return false;}});return false" class="invisivel"></a><input id="estoquePrevisaoConsultaPaginaAtual" type="hidden" name="estoquePrevisaoConsultaPaginaAtual" value="0"><input id="estoquePrevisaoConsultaPaginacaoListId" type="hidden" name="estoquePrevisaoConsultaPaginacaoListId"></span>
+</div>
+
+
+<script type="text/javascript">
+function estoquePrevisaoConsultaAplicaPaginacao(paginaAtual) {
+	carregaObjeto('estoquePrevisaoConsultaPaginaAtual').value=paginaAtual;
+	carregaObjeto('estoquePrevisaoConsultaPaginacaoListId').value='estoquePrevisaoConsulta';
+	disparaClique(carregaObjeto('estoquePrevisaoConsultaAplicaPaginacao'));
+}
+</script>
+	</div>
+	<div class="clear"></div><input type="hidden" name="javax.faces.ViewState" value="-313293724529331401:3525741061020129976" autocomplete="off">
+</form>
+
+</div>
+
+	<script type="text/javascript">
+		
+	function validate() {
+		
+		const anchor = carregaObjeto('verPdf');
+		anchor.href='javascript:void(0)';
+		
+		let dtObj = carregaObjeto('prevEntregaDt');
+		let sit = carregaObjeto('situacao');
+		let prod = carregaObjeto('produto');
+		let co = carregaObjeto('cor');
+		let des = carregaObjeto('desenho');
+		let vari = carregaObjeto('variante');
+		let retorno = true, semFiltros = false, msg = "";
+		let objDoFoco, filtros=0;
+		if (prod.value.replace(/ /g, '') != "")
+			filtros+=1;
+		if (sit.value.replace(/ /g, '') != "")
+			filtros+=1;
+		if (co.value.replace(/ /g, '') != "")
+			filtros+=1;
+		if (des.value.replace(/ /g, '') != "")
+			filtros+=1;
+		if (vari.value.replace(/ /g, '') != "")
+			filtros+=1;
+		
+		if (prod.value.replace(/ /g, '') == "") {
+			msg = 'PRODUTO deve ser preenchido\n';
+			objDoFoco = prod;
+			retorno = false;
+		
+		} 
+		
+		if (!dataValida(dtObj)) {
+			msg += 'PREVISÃO DE ENTREGA não é uma data válida';
+			if (objDoFoco==null)
+				objDoFoco = dtObj;
+			retorno = false;
+		}  
+		
+		if (retorno) {
+			if (filtros < 2) {
+				msg = 'É aconselhável a escolha de mais de 1 filtro.\nDeseja continuar?\n\nA pesquisa pode levar alguns minutos';
+				if (!confirm(msg)) {
+					retorno = false;
+					semFiltros = true;
+				}
+			}
+		}
+
+		if (!retorno && !semFiltros) {
+			alert(msg);
+			if (objDoFoco != null)
+				objDoFoco.focus();
+		}
+		if (retorno)
+			criaLinkPdf();
+		
+		return retorno;
+	}
+	
+	function criaLinkPdf() {
+		
+		let prod = carregaObjeto('produto').value;
+		if (prod.replace(/ /g, '') != "") {
+			let empCd = carregaObjeto('empresaVigenteCd').value;
+			let sit = carregaObjeto('situacao').value;
+			let co = carregaObjeto('cor').value;
+			let de = carregaObjeto('desenho').value;
+			let vari = carregaObjeto('variante').value;
+			let dtObj = getDate(carregaObjeto('prevEntregaDt').value);
+			let dt = getDataFormatada(dtObj, 'yyyy-MM-dd');
+			let acimaDe = carregaObjeto('disponivelAcimaDe').value;
+			let mod = carregaObjeto('pdfModelo').value;
+			
+			let url = 'gerapdf/estoque-previsao.pdf?api=zsis&empCd='+empCd+'&produto='+prod+'&situacao='+sit+'&cor='+co+'&desenho='+de+'&variante='+vari+'&media=pdf&page=0&size=9999&dataInicial='+dt+'&disponivelAcimaDe='+acimaDe+'&layout='+mod;
+			const anchor = carregaObjeto('verPdf');
+			anchor.href=url;
+		}
+		
+	}
+
+	</script>
+<div class="modal" id="modalVendedorFiltroPesquisa">
+	<div class="modal-body p40">
+		<div class="modal-content">
+			<div class="modal-cabecalho">
+				Representante
+				<a href="javascript:void(0)" onclick="fechaModal('modalVendedorFiltroPesquisa')">X</a>
+			</div>
+<form id="j_idt133" name="j_idt133" method="post" action="/dgb/estoquePrevisaoConsulta.jsf" enctype="application/x-www-form-urlencoded">
+<input type="hidden" name="j_idt133" value="j_idt133">
+
+			<div class="tabela">
+				<div class="p70 m-p100">
+					<div class="campo">
+						<label for="vendedorFiltroPesquisa">Nome / Código</label><input id="vendedorFiltroPesquisa" type="text" name="vendedorFiltroPesquisa">
+					</div>
+				</div>
+				<div class="p30 m-p100">
+					<div class="botao-container"><input id="j_idt137" type="submit" name="j_idt137" value="Procurar" onclick="jsf.util.chain(this,event,'return validateVendedorFiltroPesquisa()','mojarra.ab(this,event,\'action\',\'@form\',\'mensagem vendedorFiltroPesquisaList\')');return false">
+					</div>
+				</div>
+				<div class="clear"></div>
+			</div><div id="vendedorFiltroPesquisaList" class="h200 linha container-2-y">
+				<table cellspacing="1" cellpadding="3" width="100%" border="0">
+					<tbody><tr>
+						<th colspan="2">
+						<input type="checkbox" onclick="marcarTodos(this.checked,'vendedorFiltroPesquisaList')" title="Marcar tudo">
+						Representante</th>
+					</tr>
+				</tbody></table></div>
+			
+			<div class="container-3-y"><input id="j_idt146" type="submit" name="j_idt146" value="Aplicar" onclick="jsf.util.chain(this,event,'fechaModal(\'modalVendedorFiltroPesquisa\')','mojarra.ab(this,event,\'action\',\'vendedorFiltroPesquisaList\',\'mensagem vendedorFiltroAplicadoList\')');return false">
+			</div><input type="hidden" name="javax.faces.ViewState" value="-313293724529331401:3525741061020129976" autocomplete="off">
+</form>
+		</div>
+		
+	</div>
+	
+</div>
+
+<script type="text/javascript">
+
+function abreVendedorFiltroModal() {
+	disparaClique(carregaObjeto('abreModalVendedorFiltroBtn'));
+}
+
+function validateVendedorFiltroPesquisa() {
+	var foco;
+	var msg = '';
+	var retorno = campoPreenchido('vendedorFiltroPesquisa');
+	if (!retorno) {
+		msg+='VENDEDOR deve ser preenchido';
+		foco = carregaObjeto('vendedorFiltroPesquisa');
+	}
+		
+	if (!retorno) {	
+		alert(msg);
+		foco.focus();
+		
+	}
+	
+	return retorno;
+}
+
+function removerVendedor(idx) {
+	var tableTr = carregaObjeto('tableTr_'+idx);
+	var vendClicado = carregaObjeto('vendFiltro_'+idx);
+	vendClicado.checked=false;
+	tableTr.style.display='none';
+}
+
+function fechaVendedorFiltroModal() {
+	$('#modalVendedorFiltroPesquisa').modal('hide');
+}
+
+</script>
+	<div id="loading" onclick="hideLoading()"></div>
+
+<div id="modalTrocaEmpresa" class="modal">
+	<div class="modal-body p40">
+	<div class="modal-content">
+		<div class="modal-cabecalho">
+			Trocar Empresa
+			<a href="javascript:void(0);" class="fechar" onclick="fechaModal()">X</a>
+		</div>
+<form id="formTrocaEmpresa" name="formTrocaEmpresa" method="post" action="/dgb/estoquePrevisaoConsulta.jsf" enctype="application/x-www-form-urlencoded">
+<input type="hidden" name="formTrocaEmpresa" value="formTrocaEmpresa">
+
+		<div class="container-2">
+		
+		<div class="container-3-y cen fonte-media">
+		<table width="100%" cellpadding="3" cellspacing="0">
+			<tbody><tr>
+				<td class="p100">
+					<div class="container-1"><a href="#" title="01 PRO MODA TEXTIL LTDA" onclick="jsf.util.chain(this,event,'saveCompany(\'01\', \'PRO MODA TEXTIL LTDA\')','mojarra.jsfcljs(document.getElementById(\'formTrocaEmpresa\'),{\'j_idt153:0:j_idt155\':\'j_idt153:0:j_idt155\'},\'\')');return false" class="botao">01 PRO MODA TEXTIL LTDA</a>
+					</div>
+				</td>
+			</tr>
+			<tr>
+				<td class="p100">
+					<div class="container-1"><a href="#" title="13 DGB COMERCIO IMPORTACAO E EXPORTACAO LTDA" onclick="jsf.util.chain(this,event,'saveCompany(\'13\', \'DGB COMERCIO IMPORTACAO E EXPORTACAO LTDA\')','mojarra.jsfcljs(document.getElementById(\'formTrocaEmpresa\'),{\'j_idt153:1:j_idt155\':\'j_idt153:1:j_idt155\'},\'\')');return false" class="botao">13 DGB COMERCIO IMPORTACAO E EXPORTACAO LTDA</a>
+					</div>
+				</td>
+			</tr>
+			
+		</tbody></table>
+		</div>
+		
+		</div><input type="hidden" name="javax.faces.ViewState" value="-313293724529331401:3525741061020129976" autocomplete="off">
+</form>
+	
+	</div>
+</div>
+</div>
+
+<script type="text/javascript">
+function saveCompany(empCd, empNm) {
+	window.localStorage.setItem('empresa','{\"codigo\":\"'+empCd+'\", \"nome\":\"'+empNm+'\"}')
+}
+</script>
+	</div>
+
+<a href="javascript:void(0)" id="sobe-desce" title="Sobe/Desce" onclick="sobeDesce()"></a>	
+	<div id="ajax" onclick="liberaPaginaEmExecucao()" style="display: none;">
+		<a href="javascript:void(0)" class="absolute fecha right-30 top-30" onclick="hideAjax()">X</a>
+		<div>
+			<div id="ajax-status-msg">Carregando</div><img src="images/ajax.gif?ver=2" alt="DGB">
+		</div>
+	</div>
+
+<div id="ajaxResultModal" class="sub-modal">
+	<div class="modal-body p40 m-p90">
+	<div class="modal-content">
+		<div class="fonte-grande dir">
+		<a href="javascript:void(0);" class="fecha" onclick="fechaSubModal()">X</a>
+		</div>
+		<div class="container-2" id="ajaxResultModalContent"></div>
+	</div>
+	</div>
+</div>
+
+<script type="text/javascript">
+var naoMostrarAjax = "atualizaChat, idDoBotao, salvarAutomatico";
+if (typeof jsf != 'undefined') {
+	jsf.ajax.addOnEvent(function(e) {
+		// se a chamada Ajax nao for do chat
+		if (e.source == null || naoMostrarAjax.indexOf(e.source.id) < 0) {
+			if (e.status == "begin") {
+				showAjaxIndicator(e.source);
+			}
+			if (e.status == "success") {
+				hideAjaxIndicator(e.source);
+				
+				if (false) {
+					const messExi = document.getElementById('messageExists');
+					if (messExi!=null)
+						$('#toastMessage').toast('show');
+				}
+			}
+		}
+	});
+	jsf.ajax.addOnError(function(e) {
+		hideAjaxIndicator(e.source);
+		const msg = e.responseText;
+		if (false) {
+			let msgBody = carregaObjeto('toast-body-content');
+			if (msgBody==null || msgBody=='undefined')
+				msgBody = carregaObjeto('mensagem');
+			
+			msgBody.innerHTML=msg;
+			$('#toastMessage').toast('show');
+			
+		} else {
+			carregaObjeto('ajaxResultModalContent').innerHTML=msg;
+			abreModal('ajaxResultModal');	
+		}
+	});
+}
+</script>
+
+<!-- Bootstrap --><div id="mensagem"><input id="validationFailed" type="hidden" name="validationFailed" value="false"></div>
+
+<script type="text/javascript">
+	$ = jQuery;
+	$(document).ready(function() {
+      $(".tem-documento-novo").click(function(){
+        $(".documento-novo").css("display", "block"); 
+      });
+      $("#fecha-documentList").click(function(){
+	        $(".documento-novo").css("display", "none"); 
+	      });
+	});
+	
+	window.onscroll = function() {
+		if (document.body.scrollTop > 500 || document.documentElement.scrollTop > 500)
+	        carregaObjeto("sobe-desce").style.display = "block";
+		else
+			carregaObjeto("sobe-desce").style.display = "none";
+	};
+
+	function removerArquivoIgnorado(data, docCd) { 
+		switch (data.status) {
+		case "success":
+			carregaObjeto('documento_'+docCd).style.display='none';
+			break;
+		}
+		
+	}
+</script>
+
+</body></html>

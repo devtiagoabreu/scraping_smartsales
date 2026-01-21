@@ -1,6 +1,7 @@
 # parser_dgb.py - Parser ATUALIZADO para HTML do DGB
 import re
 import csv
+import os
 from datetime import datetime
 from bs4 import BeautifulSoup
 import logging
@@ -268,7 +269,6 @@ def formatar_valor(valor_str):
     except:
         return "0,00"
 
-# Função para debug - salvar HTML para análise
 def salvar_html_para_debug(html_content, produto_codigo):
     """Salva HTML para análise de debug"""
     try:
@@ -281,5 +281,30 @@ def salvar_html_para_debug(html_content, produto_codigo):
         
         logger.info(f"HTML salvo para debug: {filename}")
         return filename
-    except:
+    except Exception as e:
+        logger.error(f"Erro ao salvar HTML debug: {e}")
+        return None
+
+def criar_csv_direto(produto_codigo, registros):
+    """Cria CSV diretamente dos registros"""
+    try:
+        if not registros:
+            return None
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"produto_{produto_codigo}_{timestamp}.csv"
+        
+        os.makedirs('csv', exist_ok=True)
+        
+        with open(f'csv/{filename}', 'w', newline='', encoding='utf-8-sig') as f:
+            writer = csv.writer(f, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(['artigo', 'datahora', 'Produto / Situação / Cor / Desenho / Variante',
+                           'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
+            writer.writerows(registros)
+        
+        logger.info(f"CSV criado: {filename}")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar CSV: {e}")
         return None
