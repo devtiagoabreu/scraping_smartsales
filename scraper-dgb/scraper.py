@@ -188,32 +188,18 @@ class DGBScraper:
             return None
     
     def create_csv_from_html(self, html_content, produto_codigo):
-        """Cria CSV a partir do HTML usando o novo parser"""
+        """Cria CSV a partir do HTML usando o parser simplificado"""
         try:
             # Salvar HTML para debug primeiro
             self.save_html_for_debug(html_content, produto_codigo)
             
-            # Usar o parser específico
-            registros = parser_dgb.parse_dgb_completo(html_content, produto_codigo)
-            
-            # Se não encontrou dados reais, tentar parser de emergência
-            dados_reais = False
-            for registro in registros:
-                if registro[4] != "0,00" or registro[5] != "0,00" or registro[6] != "0,00":
-                    dados_reais = True
-                    break
-            
-            if not dados_reais:
-                logger.warning(f"Nenhum dado real encontrado para {produto_codigo}, tentando parser de emergência...")
-                registros = parser_dgb.parse_emergencia_simples(html_content, produto_codigo)
+            # Usar o parser simplificado
+            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
             
             if not registros:
                 logger.warning(f"Nenhum registro extraído para {produto_codigo}")
-                
-                # Criar registro vazio para manter a estrutura
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                artigo = str(produto_codigo).lstrip('0')
-                registros = [[artigo, timestamp, f"Produto {produto_codigo} - Sem dados", "N/A", "0,00", "0,00", "0,00"]]
+                # Usar parser de emergência
+                registros = parser_dgb.parse_emergencia_simples(html_content, produto_codigo)
             
             # Criar pasta csv se não existir
             os.makedirs('csv', exist_ok=True)
@@ -235,10 +221,8 @@ class DGBScraper:
             
         except Exception as e:
             logger.error(f"❌ Erro ao criar CSV para {produto_codigo}: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
             
-            # Criar arquivo CSV de erro
+            # Criar arquivo CSV de erro mínimo
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"produto_{produto_codigo}_{timestamp}.csv"
             filepath = os.path.join('csv', filename)
@@ -250,7 +234,7 @@ class DGBScraper:
                                    'Previsão', 'Estoque', 'Pedidos', 'Disponível'])
                     writer.writerow([str(produto_codigo).lstrip('0'), 
                                    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                   f"Produto {produto_codigo} - ERRO: {str(e)[:100]}",
+                                   f"Produto {produto_codigo} - ERRO",
                                    "Erro", "0,00", "0,00", "0,00"])
                 
                 logger.info(f"📄 CSV de erro criado: {filename}")
@@ -263,7 +247,7 @@ class DGBScraper:
         """Método estático para criar CSV a partir de HTML"""
         try:
             # Parsear HTML
-            registros = parser_dgb.parse_dgb_completo(html_content, produto_codigo)
+            registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
             
             if not registros:
                 logger.warning(f"Nenhum registro extraído para {produto_codigo}")
@@ -305,7 +289,7 @@ def create_csv_from_html(html_content, produto_codigo):
     """
     try:
         # Parsear HTML
-        registros = parser_dgb.parse_dgb_completo(html_content, produto_codigo)
+        registros = parser_dgb.parse_html_dgb_simples(html_content, produto_codigo)
         
         if not registros:
             logger.warning(f"Nenhum registro extraído para {produto_codigo}")
