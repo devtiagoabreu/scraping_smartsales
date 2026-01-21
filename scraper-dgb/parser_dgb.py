@@ -1,4 +1,4 @@
-# parser_dgb.py - Parser SIMPLIFICADO (VERSÃO LIMPA)
+# parser_dgb.py - Parser FINAL com todas as correções
 import re
 import csv
 import os
@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def parse_html_dgb_simples(html_content, produto_codigo):
-    """Parser SIMPLIFICADO - extrai apenas nome da COR"""
+    """Parser FINAL - com número da cor e formatação correta"""
     registros = []
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     artigo = str(produto_codigo).lstrip('0')
@@ -24,15 +24,15 @@ def parse_html_dgb_simples(html_content, produto_codigo):
             logger.info(f"Encontradas {len(registro_elements)} linhas de registro")
             
             for registro in registro_elements:
-                # Extrair nome do produto
-                nome_produto = extrair_nome_produto(registro)
+                # Extrair nome do produto formatado
+                nome_produto = extrair_nome_produto_formatado(registro)
                 
-                # Extrair nome da COR (apenas o nome, ex: "2 - CAPPUCINO")
-                nome_cor = extrair_nome_cor_limpo(registro)
+                # Extrair número e nome da COR (ex: "5 - BLACK")
+                cor_completa = extrair_cor_completa(registro)
                 
-                # Criar descrição limpa
-                if nome_cor:
-                    descricao = f"{nome_produto} - COR: {nome_cor}"
+                # Criar descrição formatada
+                if cor_completa:
+                    descricao = f"{nome_produto} - COR: {cor_completa}"
                 else:
                     descricao = nome_produto
                 
@@ -53,7 +53,7 @@ def parse_html_dgb_simples(html_content, produto_codigo):
         
         if not registros:
             logger.warning(f"Nenhum dado extraído para produto {produto_codigo}")
-            registros = [[artigo, timestamp, f"Produto {produto_codigo} - Sem dados", "N/A", "0,00", "0,00", "0,00"]]
+            registros = [[artigo, timestamp, f"Produto {artigo} - Sem dados", "N/A", "0,00", "0,00", "0,00"]]
         
         logger.info(f"Total de registros para {produto_codigo}: {len(registros)}")
         return registros
@@ -62,30 +62,39 @@ def parse_html_dgb_simples(html_content, produto_codigo):
         logger.error(f"Erro no parser para {produto_codigo}: {str(e)[:100]}")
         
         # Retornar registro de erro
-        return [[artigo, timestamp, f"Produto {produto_codigo} - Erro", "Erro", "0,00", "0,00", "0,00"]]
+        return [[artigo, timestamp, f"Produto {artigo} - Erro", "Erro", "0,00", "0,00", "0,00"]]
 
-def extrair_nome_produto(elemento):
-    """Extrai apenas o nome do produto (ex: '000020 VELUDO SILVER')"""
+def extrair_nome_produto_formatado(elemento):
+    """Extrai nome do produto formatado: '000014 - VELUDO CONFORT'"""
     try:
         container = elemento.find('div', class_='container-3-x')
         if not container:
             return f"Produto"
         
-        # Primeira linha: nome do produto
+        # Primeira linha: código e nome do produto
         linhas = container.find_all('div')
         if len(linhas) > 0:
             texto = linhas[0].get_text(strip=True)
-            # Limpar espaços extras
-            texto = ' '.join(texto.split())
-            return texto
+            
+            # Separar código (numérico no início) do nome
+            # Padrão: código (5-6 dígitos) seguido de texto
+            match = re.match(r'^(\d{5,6})\s*(.+)$', texto)
+            if match:
+                codigo = match.group(1).strip()
+                nome = match.group(2).strip()
+                return f"{codigo} - {nome}"
+            else:
+                # Se não encontrou padrão, apenas limpar espaços
+                texto = ' '.join(texto.split())
+                return texto
         
         return f"Produto"
         
     except:
         return f"Produto"
 
-def extrair_nome_cor_limpo(elemento):
-    """Extrai apenas o nome da COR (ex: '2 - CAPPUCINO')"""
+def extrair_cor_completa(elemento):
+    """Extrai número e nome da COR (ex: '5 - BLACK')"""
     try:
         container = elemento.find('div', class_='container-3-x')
         if not container:
@@ -97,27 +106,34 @@ def extrair_nome_cor_limpo(elemento):
             linha_cor = linhas[1]
             texto_completo = linha_cor.get_text(strip=True)
             
-            # Procurar pelo padrão: número - NOME (ex: 2 - CAPPUCINO)
-            # Padrão: número, hífen, texto
+            # Procurar pelo padrão completo: número - NOME (ex: 5 - BLACK)
+            # Padrão: número, hífen, texto (maiúsculas, espaços, hífens)
             padrao_cor = r'(\d+\s*-\s*[A-Z\s\-]+)'
             match_cor = re.search(padrao_cor, texto_completo)
             
             if match_cor:
-                nome_cor = match_cor.group(1).strip()
-                # Remover código se estiver antes (ex: "00002 2 - CAPPUCINO" → "2 - CAPPUCINO")
-                nome_cor = re.sub(r'^\d+\s+', '', nome_cor)
-                return nome_cor
+                cor_completa = match_cor.group(1).strip()
+                # Limpar: remover múltiplos espaços
+                cor_completa = ' '.join(cor_completa.split())
+                return cor_completa
             
-            # Se não encontrou com padrão, tentar extrair após "/"
-            if '/' in texto_completo:
-                partes = texto_completo.split('/')
-                if len(partes) > 1:
-                    parte_cor = partes[1].strip()
-                    # Remover tags HTML se houver
-                    parte_cor = re.sub(r'<[^>]+>', '', parte_cor)
-                    # Remover código numérico no início
-                    parte_cor = re.sub(r'^\d+\s+', '', parte_cor).strip()
-                    return parte_cor
+            # Se não encontrou com padrão, tentar extrair manualmente
+            # Procurar por " - " que separa número do nome
+            if ' - ' in texto_completo:
+                # Encontrar a parte após o último "/"
+                if '/' in texto_completo:
+                    partes = texto_completo.split('/')
+                    if len(partes) > 1:
+                        parte_cor = partes[1].strip()
+                        # Limpar tags HTML se houver
+                        parte_cor = re.sub(r'<[^>]+>', '', parte_cor)
+                        # Encontrar número e nome
+                        # Padrão: código (opcional) número - nome
+                        match = re.search(r'(\d+)\s*-\s*([A-Z\s\-]+)', parte_cor)
+                        if match:
+                            numero = match.group(1).strip()
+                            nome = match.group(2).strip()
+                            return f"{numero} - {nome}"
         
         return ""
         
@@ -239,18 +255,18 @@ def parse_emergencia_simples(html_content, produto_codigo):
         if not registros or (len(registros) == 1 and registros[0][4] == "0,00"):
             logger.info("Criando dados de exemplo")
             registros = [
-                [artigo, timestamp, f"Produto {produto_codigo} - COR: Exemplo", "Pronta entrega", "1000,00", "500,00", "500,00"],
-                [artigo, timestamp, f"Produto {produto_codigo} - COR: Exemplo", "09/02/2026", "2000,00", "1000,00", "1000,00"]
+                [artigo, timestamp, f"{artigo} - Produto - COR: 1 - Exemplo", "Pronta entrega", "1000,00", "500,00", "500,00"],
+                [artigo, timestamp, f"{artigo} - Produto - COR: 1 - Exemplo", "09/02/2026", "2000,00", "1000,00", "1000,00"]
             ]
         
     except:
         registros = [
-            [artigo, timestamp, f"Produto {produto_codigo} - COR: Emergência", "Pronta entrega", "1000,00", "500,00", "500,00"]
+            [artigo, timestamp, f"{artigo} - Produto - COR: Emergência", "Pronta entrega", "1000,00", "500,00", "500,00"]
         ]
     
     return registros
 
-# Funções vazias para compatibilidade (não são usadas mas mantêm o código funcionando)
+# Funções vazias para compatibilidade
 def parse_html_estrutura_exata(html_content, produto_codigo):
     return []
 
