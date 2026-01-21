@@ -3,161 +3,335 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scraper DGB - Sistema Simplificado</title>
+    <title>Scraper DGB - Sistema Completo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        body { background: #f8f9fa; }
-        .card { margin-bottom: 20px; }
-        .progress { height: 25px; }
+        body { 
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+        }
+        .card { 
+            margin-bottom: 20px; 
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .progress { 
+            height: 25px; 
+            border-radius: 5px;
+        }
         .log-container { 
             height: 300px; 
             overflow-y: auto; 
             background: #f8f9fa;
             border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 10px;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
         }
         .btn-group-vertical { width: 100%; }
-        .btn-group-vertical .btn { margin-bottom: 5px; text-align: left; }
+        .btn-group-vertical .btn { 
+            margin-bottom: 5px; 
+            text-align: left;
+            border-radius: 5px;
+        }
+        .nav-tabs .nav-link {
+            font-weight: 500;
+        }
+        .file-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        .stats-number {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .section-title {
+            border-left: 4px solid #007bff;
+            padding-left: 10px;
+            margin: 20px 0 15px 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
         <div class="container">
-            <span class="navbar-brand">Scraper DGB - Sistema Simplificado</span>
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-robot"></i> Scraper DGB - Sistema Completo
+            </a>
+            <div class="navbar-text text-light">
+                <small><i class="bi bi-calendar-check"></i> <span id="current-date"></span></small>
+            </div>
         </div>
     </nav>
 
     <div class="container mt-4">
         <div class="row">
+            <!-- Coluna Esquerda -->
             <div class="col-md-4">
+                <!-- Cartão de Estatísticas -->
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-bar-chart"></i> Estatísticas do Sistema</h5>
+                        <div class="row text-center mt-3">
+                            <div class="col-4">
+                                <div class="stats-number" id="csv-count">0</div>
+                                <small>CSVs</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="stats-number" id="pdf-count">0</div>
+                                <small>PDFs</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="stats-number" id="image-count">0</div>
+                                <small>Imagens</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controles Principais -->
                 <div class="card">
                     <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0">Controles Principais</h5>
+                        <h5 class="mb-0"><i class="bi bi-gear"></i> Controles Principais</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label class="form-label">Lista de Produtos</label>
-                            <textarea class="form-control" id="products-list" rows="5"></textarea>
-                            <small class="text-muted">Códigos separados por vírgula</small>
+                            <label class="form-label"><i class="bi bi-box-seam"></i> Lista de Produtos</label>
+                            <textarea class="form-control" id="products-list" rows="5" 
+                                      placeholder="Códigos separados por vírgula (ex: 14,15,19,20)"></textarea>
                         </div>
                         
                         <div class="d-grid gap-2 mb-3">
                             <button class="btn btn-outline-primary" onclick="loadProducts()">
-                                Carregar Produtos
+                                <i class="bi bi-download"></i> Carregar Produtos
                             </button>
                             <button class="btn btn-outline-success" onclick="saveProducts()">
-                                Salvar Produtos
+                                <i class="bi bi-save"></i> Salvar Produtos
                             </button>
                         </div>
                         
                         <div class="d-grid gap-2 mb-3">
                             <button class="btn btn-success" id="start-btn" onclick="startScraping()">
-                                Iniciar Scraping
+                                <i class="bi bi-play-circle"></i> Iniciar Scraping
                             </button>
                             <button class="btn btn-danger" id="stop-btn" onclick="stopScraping()" disabled>
-                                Parar Scraping
-                            </button>
-                        </div>
-                        
-                        <div class="d-grid gap-2 mb-3">
-                            <button class="btn btn-warning" onclick="createCSVs()">
-                                Criar CSVs Individuais
-                            </button>
-                            <button class="btn btn-info" onclick="consolidate()">
-                                Consolidar Dados (CSV/Excel)
+                                <i class="bi bi-stop-circle"></i> Parar Scraping
                             </button>
                         </div>
                     </div>
                 </div>
 
+                <!-- Geração de Relatórios -->
                 <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">Geração de PDFs</h5>
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> Geração de Relatórios</h5>
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
+                            <button class="btn btn-warning" onclick="createCSVs()">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Criar CSVs Individuais
+                            </button>
+                            <button class="btn btn-info" onclick="consolidate()">
+                                <i class="bi bi-file-earmark-excel"></i> Consolidar Dados
+                            </button>
                             <button class="btn btn-primary" onclick="generatePDFs()">
-                                Gerar Relatórios PDF
+                                <i class="bi bi-file-pdf"></i> Gerar PDFs + Imagens
                             </button>
                             <button class="btn btn-outline-info" onclick="testParser()">
-                                Testar Parser
+                                <i class="bi bi-bug"></i> Testar Parser
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna Central -->
+            <div class="col-md-4">
+                <!-- Progresso do Sistema -->
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="bi bi-speedometer2"></i> Progresso do Sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-3">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 style="width: 0%" role="progressbar"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <p><strong><i class="bi bi-activity"></i> Status:</strong></p>
+                                <p><strong><i class="bi bi-box"></i> Produto Atual:</strong></p>
+                                <p><strong><i class="bi bi-chat-left-text"></i> Mensagem:</strong></p>
+                            </div>
+                            <div class="col-6">
+                                <p><span id="status-text" class="badge bg-info">Pronto</span></p>
+                                <p><span id="current-product" class="badge bg-secondary">-</span></p>
+                                <p><span id="status-message" class="text-muted">Aguardando início</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuração de Email -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-envelope"></i> Envio de Email</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label"><i class="bi bi-people"></i> Lista de Contatos</label>
+                            <textarea class="form-control" id="email-contacts" rows="3" 
+                                      placeholder="emails separados por ponto e vírgula"></textarea>
+                            <small class="text-muted">Exemplo: email1@exemplo.com;email2@exemplo.com</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label"><i class="bi bi-chat-left-text"></i> Mensagem do Email</label>
+                            <textarea class="form-control" id="email-message" rows="4"></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success" onclick="loadEmailSettings()">
+                                <i class="bi bi-download"></i> Carregar Configurações
+                            </button>
+                            <button class="btn btn-success" onclick="saveEmailSettings()">
+                                <i class="bi bi-save"></i> Salvar Configurações
+                            </button>
+                            <button class="btn btn-dark" onclick="sendEmail()">
+                                <i class="bi bi-send"></i> Enviar Email com Relatório
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna Direita -->
+            <div class="col-md-4">
+                <!-- Logs do Sistema -->
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="mb-0"><i class="bi bi-terminal"></i> Logs do Sistema</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="log-container" id="log-content">
+                            <!-- Logs serão inseridos aqui -->
+                        </div>
+                        <div class="mt-2 d-flex justify-content-between">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()">
+                                <i class="bi bi-trash"></i> Limpar Logs
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="copyLogs()">
+                                <i class="bi bi-clipboard"></i> Copiar Logs
                             </button>
                         </div>
                     </div>
                 </div>
 
+                <!-- Limpeza de Dados -->
                 <div class="card">
                     <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0">Limpeza de Dados</h5>
+                        <h5 class="mb-0"><i class="bi bi-trash"></i> Limpeza de Dados</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="clean-csv" checked>
                                 <label class="form-check-label" for="clean-csv">
-                                    Limpar arquivos CSV
+                                    <i class="bi bi-file-earmark-spreadsheet"></i> Limpar arquivos CSV
                                 </label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="clean-debug" checked>
                                 <label class="form-check-label" for="clean-debug">
-                                    Limpar arquivos de Debug
+                                    <i class="bi bi-bug"></i> Limpar arquivos de Debug
                                 </label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="clean-pdfs" checked>
                                 <label class="form-check-label" for="clean-pdfs">
-                                    Limpar arquivos PDF
+                                    <i class="bi bi-file-pdf"></i> Limpar arquivos PDF
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="clean-images" checked>
+                                <label class="form-check-label" for="clean-images">
+                                    <i class="bi bi-image"></i> Limpar arquivos de Imagem
                                 </label>
                             </div>
                         </div>
                         
                         <div class="d-grid">
                             <button class="btn btn-danger" onclick="cleanData()">
-                                Limpar Dados Coletados
+                                <i class="bi bi-trash-fill"></i> Limpar Dados Coletados
                             </button>
                         </div>
                     </div>
                 </div>
-
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">Progresso</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="progress mb-3">
-                            <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
-                        </div>
-                        <p><strong>Status:</strong> <span id="status-text">Pronto</span></p>
-                        <p><strong>Produto Atual:</strong> <span id="current-product">-</span></p>
-                        <p><strong>Mensagem:</strong> <span id="status-message">Aguardando início</span></p>
-                    </div>
-                </div>
             </div>
+        </div>
 
-            <div class="col-md-8">
+        <!-- Lista de Arquivos -->
+        <div class="row mt-4">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0">Logs do Sistema</h5>
+                        <h5 class="mb-0"><i class="bi bi-folder"></i> Arquivos Gerados</h5>
                     </div>
                     <div class="card-body">
-                        <div class="log-container" id="log-content">
-                            <!-- Logs serão inseridos aqui -->
-                        </div>
-                        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="clearLogs()">
-                            Limpar Logs
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0">Arquivos Gerados</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="files-list">
-                            <!-- Lista de arquivos será inserida aqui -->
+                        <ul class="nav nav-tabs" id="filesTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="csv-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#csv-files" type="button" role="tab">
+                                    <i class="bi bi-file-earmark-spreadsheet"></i> CSVs
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="pdf-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#pdf-files" type="button" role="tab">
+                                    <i class="bi bi-file-pdf"></i> PDFs
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="image-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#image-files" type="button" role="tab">
+                                    <i class="bi bi-image"></i> Imagens
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content p-3" id="filesTabContent">
+                            <div class="tab-pane fade show active" id="csv-files" role="tabpanel">
+                                <div id="csv-files-list"></div>
+                            </div>
+                            <div class="tab-pane fade" id="pdf-files" role="tabpanel">
+                                <div id="pdf-files-list"></div>
+                            </div>
+                            <div class="tab-pane fade" id="image-files" role="tabpanel">
+                                <div id="image-files-list"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -170,7 +344,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-warning">
-                    <h5 class="modal-title">Confirmar Limpeza</h5>
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirmar Limpeza</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -178,11 +352,34 @@
                     <div id="clean-options">
                         <!-- Opções serão preenchidas via JavaScript -->
                     </div>
-                    <p class="text-danger mt-2"><strong>Atenção:</strong> Esta ação não pode ser desfeita!</p>
+                    <p class="text-danger mt-2">
+                        <i class="bi bi-exclamation-circle"></i> 
+                        <strong>Atenção:</strong> Esta ação não pode ser desfeita!
+                    </p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-danger" onclick="confirmClean()">Confirmar Limpeza</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="confirmClean()">
+                        <i class="bi bi-trash-fill"></i> Confirmar Limpeza
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para resultados -->
+    <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header" id="result-modal-header">
+                    <h5 class="modal-title" id="result-modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="result-modal-body"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 </div>
             </div>
         </div>
@@ -191,14 +388,39 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let logs = [];
+        let statusInterval;
+        
+        // Atualizar data atual
+        function updateCurrentDate() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            document.getElementById('current-date').textContent = 
+                now.toLocaleDateString('pt-BR', options);
+        }
         
         function addLog(message, type = 'info') {
             const timestamp = new Date().toLocaleTimeString();
-            const typeClass = type === 'error' ? 'text-danger' : 
-                             type === 'success' ? 'text-success' : 
-                             type === 'warning' ? 'text-warning' : '';
+            const typeIcon = type === 'error' ? 'bi-x-circle-fill text-danger' : 
+                           type === 'success' ? 'bi-check-circle-fill text-success' : 
+                           type === 'warning' ? 'bi-exclamation-triangle-fill text-warning' : 
+                           'bi-info-circle-fill text-info';
             
-            logs.unshift(`<div class="${typeClass}">[${timestamp}] ${message}</div>`);
+            const logEntry = `
+                <div class="mb-1">
+                    <i class="bi ${typeIcon} me-2"></i>
+                    <span class="text-muted">[${timestamp}]</span>
+                    ${message}
+                </div>
+            `;
+            
+            logs.unshift(logEntry);
             
             if (logs.length > 50) logs.pop();
             
@@ -213,6 +435,23 @@
         function clearLogs() {
             logs = [];
             updateLogs();
+            addLog('Logs limpos', 'info');
+        }
+        
+        function copyLogs() {
+            const logText = logs.map(log => 
+                log.replace(/<[^>]*>/g, '')
+                   .replace(/&nbsp;/g, ' ')
+                   .trim()
+            ).join('\n');
+            
+            navigator.clipboard.writeText(logText)
+                .then(() => {
+                    addLog('Logs copiados para a área de transferência', 'success');
+                })
+                .catch(err => {
+                    addLog('Erro ao copiar logs: ' + err, 'error');
+                });
         }
 
         async function testParser() {
@@ -228,15 +467,25 @@
                 if (data.success) {
                     addLog(`✅ Parser testado: ${data.resultados.parser_completo.registros} registros encontrados`, 'success');
                     
-                    // Mostrar detalhes
-                    let detalhes = `Arquivo: ${data.arquivo}\n`;
-                    detalhes += `Tamanho HTML: ${data.tamanho_html} caracteres\n\n`;
+                    // Mostrar resultado em modal
+                    let resultHtml = `
+                        <p><strong>Arquivo:</strong> ${data.arquivo}</p>
+                        <p><strong>Tamanho HTML:</strong> ${data.tamanho_html} caracteres</p>
+                        <hr>
+                        <h6>Resultados dos Parsers:</h6>
+                        <ul>
+                    `;
                     
                     for (const [metodo, info] of Object.entries(data.resultados)) {
-                        detalhes += `${metodo}: ${info.registros} registros\n`;
+                        resultHtml += `
+                            <li><strong>${metodo}:</strong> ${info.registros} registros</li>
+                        `;
                     }
                     
-                    alert(detalhes);
+                    resultHtml += `</ul><p><strong>Recomendado:</strong> ${data.recomendado}</p>`;
+                    
+                    showResultModal('Resultado do Teste do Parser', resultHtml);
+                    
                 } else {
                     addLog(`❌ Erro: ${data.error}`, 'error');
                 }
@@ -281,6 +530,8 @@
         async function startScraping() {
             document.getElementById('start-btn').disabled = true;
             document.getElementById('stop-btn').disabled = false;
+            document.getElementById('start-btn').innerHTML = 
+                '<span class="loading"></span> Iniciando...';
             
             addLog('Iniciando scraping...', 'info');
             
@@ -295,11 +546,15 @@
                     addLog('Erro: ' + data.error, 'error');
                     document.getElementById('start-btn').disabled = false;
                     document.getElementById('stop-btn').disabled = true;
+                    document.getElementById('start-btn').innerHTML = 
+                        '<i class="bi bi-play-circle"></i> Iniciar Scraping';
                 }
             } catch (error) {
                 addLog('Erro ao iniciar scraping', 'error');
                 document.getElementById('start-btn').disabled = false;
                 document.getElementById('stop-btn').disabled = true;
+                document.getElementById('start-btn').innerHTML = 
+                    '<i class="bi bi-play-circle"></i> Iniciar Scraping';
             }
         }
         
@@ -312,6 +567,8 @@
                     addLog('Scraping parado', 'warning');
                     document.getElementById('start-btn').disabled = false;
                     document.getElementById('stop-btn').disabled = true;
+                    document.getElementById('start-btn').innerHTML = 
+                        '<i class="bi bi-play-circle"></i> Iniciar Scraping';
                 }
             } catch (error) {
                 addLog('Erro ao parar scraping', 'error');
@@ -331,18 +588,6 @@
                 
                 if (data.success) {
                     addLog(`✅ ${data.message}`, 'success');
-                    
-                    // Mostrar arquivos criados
-                    if (data.files && data.files.length > 0) {
-                        let html = '<div class="alert alert-success mt-3"><h5>Arquivos Criados:</h5><ul>';
-                        data.files.forEach(file => {
-                            html += `<li>${file.produto}: <a href="/api/download/csv/${file.filename}">${file.filename}</a></li>`;
-                        });
-                        html += '</ul></div>';
-                        
-                        // Adicionar ao log
-                        addLog(html, 'success');
-                    }
                     
                     // Atualizar lista de arquivos
                     loadFiles();
@@ -374,7 +619,7 @@
         }
         
         async function generatePDFs() {
-            addLog('Gerando relatórios PDF...', 'info');
+            addLog('Gerando relatórios PDF e imagens...', 'info');
             
             try {
                 const response = await fetch('/api/generate-pdfs', {
@@ -387,17 +632,27 @@
                 if (data.success) {
                     addLog(`✅ ${data.message}`, 'success');
                     
-                    // Mostrar arquivos criados
+                    // Mostrar resultado em modal
+                    let resultHtml = `
+                        <p><strong>${data.message}</strong></p>
+                        <p><strong>Total de Registros:</strong> ${data.total_registros}</p>
+                        <p><strong>Produtos Únicos:</strong> ${data.produtos_unicos}</p>
+                    `;
+                    
                     if (data.pdf_files && data.pdf_files.length > 0) {
-                        let html = '<div class="alert alert-success mt-3"><h5>PDFs Gerados:</h5><ul>';
+                        resultHtml += '<hr><h6>PDFs Gerados:</h6><ul>';
                         data.pdf_files.forEach(file => {
-                            html += `<li>${file.desc}: <a href="/api/download/pdf/${file.name}">${file.name}</a></li>`;
+                            resultHtml += `<li>${file.desc}</li>`;
                         });
-                        html += '</ul></div>';
-                        
-                        // Adicionar ao log
-                        addLog(html, 'success');
+                        resultHtml += '</ul>';
                     }
+                    
+                    if (data.image_files && data.image_files.length > 0) {
+                        resultHtml += '<hr><h6>Imagens Geradas:</h6>';
+                        resultHtml += `<p>${data.image_files.length} imagens criadas</p>`;
+                    }
+                    
+                    showResultModal('Resultado da Geração de PDFs', resultHtml);
                     
                     // Atualizar lista de arquivos
                     loadFiles();
@@ -410,18 +665,109 @@
             }
         }
         
+        async function sendEmail() {
+            addLog('Enviando emails...', 'info');
+            
+            try {
+                const response = await fetch('/api/send-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✅ ${data.message}`, 'success');
+                    
+                    // Mostrar resultado em modal
+                    let resultHtml = `
+                        <p><strong>${data.message}</strong></p>
+                        <p><strong>PDF Enviado:</strong> ${data.pdf_file}</p>
+                    `;
+                    
+                    if (data.emails_sent && data.emails_sent.length > 0) {
+                        resultHtml += '<hr><h6>Emails Enviados:</h6><ul>';
+                        data.emails_sent.forEach(email => {
+                            resultHtml += `<li>${email}</li>`;
+                        });
+                        resultHtml += '</ul>';
+                    }
+                    
+                    if (data.emails_failed && data.emails_failed.length > 0) {
+                        resultHtml += '<hr><h6 class="text-danger">Emails com Erro:</h6><ul>';
+                        data.emails_failed.forEach(failed => {
+                            resultHtml += `<li>${failed.email}: ${failed.error}</li>`;
+                        });
+                        resultHtml += '</ul>';
+                    }
+                    
+                    showResultModal('Resultado do Envio de Email', resultHtml);
+                    
+                } else {
+                    addLog(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog('Erro ao enviar email: ' + error, 'error');
+            }
+        }
+        
+        async function loadEmailSettings() {
+            try {
+                // Carregar contatos
+                const contactsResponse = await fetch('/api/email-contacts');
+                const contactsData = await contactsResponse.json();
+                document.getElementById('email-contacts').value = contactsData.contatos;
+                
+                // Carregar mensagem
+                const messageResponse = await fetch('/api/email-message');
+                const messageData = await messageResponse.json();
+                document.getElementById('email-message').value = messageData.mensagem;
+                
+                addLog('Configurações de email carregadas', 'success');
+            } catch (error) {
+                addLog('Erro ao carregar configurações de email', 'error');
+            }
+        }
+        
+        async function saveEmailSettings() {
+            const contatos = document.getElementById('email-contacts').value;
+            const mensagem = document.getElementById('email-message').value;
+            
+            try {
+                // Salvar contatos
+                const contactsResponse = await fetch('/api/email-contacts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contatos })
+                });
+                
+                // Salvar mensagem
+                const messageResponse = await fetch('/api/email-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mensagem })
+                });
+                
+                addLog('Configurações de email salvas', 'success');
+            } catch (error) {
+                addLog('Erro ao salvar configurações de email', 'error');
+            }
+        }
+        
         function cleanData() {
             const cleanCSV = document.getElementById('clean-csv').checked;
             const cleanDebug = document.getElementById('clean-debug').checked;
             const cleanPDFs = document.getElementById('clean-pdfs').checked;
+            const cleanImages = document.getElementById('clean-images').checked;
             
             let optionsText = '';
             if (cleanCSV) optionsText += '• Arquivos CSV<br/>';
             if (cleanDebug) optionsText += '• Arquivos de Debug<br/>';
             if (cleanPDFs) optionsText += '• Arquivos PDF<br/>';
+            if (cleanImages) optionsText += '• Arquivos de Imagem<br/>';
             
-            if (!cleanCSV && !cleanDebug && !cleanPDFs) {
-                alert('Selecione pelo menos uma opção para limpar');
+            if (!cleanCSV && !cleanDebug && !cleanPDFs && !cleanImages) {
+                showResultModal('Atenção', 'Selecione pelo menos uma opção para limpar');
                 return;
             }
             
@@ -429,7 +775,7 @@
                 `<p>Serão removidos:</p>${optionsText}`;
             
             // Armazenar opções para uso posterior
-            window.cleanOptions = { cleanCSV, cleanDebug, cleanPDFs };
+            window.cleanOptions = { cleanCSV, cleanDebug, cleanPDFs, cleanImages };
             
             // Mostrar modal
             const cleanModal = new bootstrap.Modal(document.getElementById('cleanModal'));
@@ -461,8 +807,28 @@
             }
         }
         
+        function showResultModal(title, content) {
+            document.getElementById('result-modal-title').textContent = title;
+            document.getElementById('result-modal-body').innerHTML = content;
+            
+            // Definir cor do cabeçalho baseado no título
+            const header = document.getElementById('result-modal-header');
+            if (title.includes('Erro') || title.includes('Atenção')) {
+                header.className = 'modal-header bg-warning text-dark';
+            } else if (title.includes('Sucesso')) {
+                header.className = 'modal-header bg-success text-white';
+            } else {
+                header.className = 'modal-header bg-primary text-white';
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('resultModal'));
+            modal.show();
+        }
+        
         function startStatusPolling() {
-            const interval = setInterval(async () => {
+            if (statusInterval) clearInterval(statusInterval);
+            
+            statusInterval = setInterval(async () => {
                 try {
                     const response = await fetch('/api/status');
                     const status = await response.json();
@@ -470,9 +836,14 @@
                     updateStatus(status);
                     
                     if (!status.running) {
-                        clearInterval(interval);
+                        clearInterval(statusInterval);
                         document.getElementById('start-btn').disabled = false;
                         document.getElementById('stop-btn').disabled = true;
+                        document.getElementById('start-btn').innerHTML = 
+                            '<i class="bi bi-play-circle"></i> Iniciar Scraping';
+                        
+                        // Atualizar dashboard
+                        loadDashboard();
                     }
                 } catch (error) {
                     console.error('Erro ao buscar status:', error);
@@ -483,7 +854,12 @@
         function updateStatus(status) {
             document.getElementById('progress-bar').style.width = status.progress + '%';
             document.getElementById('progress-bar').textContent = status.progress + '%';
-            document.getElementById('status-text').textContent = status.running ? 'Executando' : 'Parado';
+            
+            const statusText = status.running ? 
+                '<span class="badge bg-success">Executando</span>' : 
+                '<span class="badge bg-secondary">Parado</span>';
+            document.getElementById('status-text').innerHTML = statusText;
+            
             document.getElementById('current-product').textContent = status.current || '-';
             document.getElementById('status-message').textContent = status.message;
             
@@ -508,68 +884,144 @@
                 const response = await fetch('/api/files');
                 const data = await response.json();
                 
-                let html = '';
+                let csvHtml = '';
+                let pdfHtml = '';
+                let imageHtml = '';
                 
                 if (data.files && data.files.length > 0) {
                     // Separar por tipo
                     const csvFiles = data.files.filter(f => f.type === 'csv');
                     const pdfFiles = data.files.filter(f => f.type === 'pdf');
+                    const imageFiles = data.files.filter(f => f.type === 'image');
                     
                     // CSV Files
                     if (csvFiles.length > 0) {
-                        html += '<h6 class="mt-3">Arquivos CSV:</h6>';
-                        html += '<div class="list-group mb-3">';
                         csvFiles.forEach(file => {
                             const fileSize = (file.size / 1024).toFixed(1);
-                            html += `
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                            csvHtml += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                                     <div>
-                                        <span>${file.name}</span>
-                                        <small class="text-muted d-block">${fileSize} KB</small>
+                                        <i class="bi bi-file-earmark-spreadsheet text-primary"></i>
+                                        <span class="ms-2">${file.name}</span>
+                                        <small class="text-muted d-block ms-4">${fileSize} KB</small>
                                     </div>
-                                    <a href="${file.url}" class="btn btn-sm btn-primary">Baixar</a>
+                                    <a href="${file.url}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-download"></i> Baixar
+                                    </a>
                                 </div>
                             `;
                         });
-                        html += '</div>';
+                    } else {
+                        csvHtml = '<p class="text-muted">Nenhum arquivo CSV</p>';
                     }
                     
                     // PDF Files
                     if (pdfFiles.length > 0) {
-                        html += '<h6>Arquivos PDF:</h6>';
-                        html += '<div class="list-group">';
                         pdfFiles.forEach(file => {
                             const fileSize = (file.size / 1024).toFixed(1);
-                            html += `
-                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                            pdfHtml += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                                     <div>
-                                        <span>${file.name}</span>
-                                        <small class="text-muted d-block">${fileSize} KB</small>
+                                        <i class="bi bi-file-pdf text-danger"></i>
+                                        <span class="ms-2">${file.name}</span>
+                                        <small class="text-muted d-block ms-4">${fileSize} KB</small>
                                     </div>
-                                    <a href="${file.url}" class="btn btn-sm btn-danger">Baixar</a>
+                                    <a href="${file.url}" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-download"></i> Baixar
+                                    </a>
                                 </div>
                             `;
                         });
-                        html += '</div>';
+                    } else {
+                        pdfHtml = '<p class="text-muted">Nenhum arquivo PDF</p>';
+                    }
+                    
+                    // Image Files
+                    if (imageFiles.length > 0) {
+                        imageFiles.forEach(file => {
+                            const fileSize = (file.size / 1024).toFixed(1);
+                            imageHtml += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                    <div>
+                                        <i class="bi bi-image text-success"></i>
+                                        <span class="ms-2">${file.name}</span>
+                                        <small class="text-muted d-block ms-4">${fileSize} KB</small>
+                                    </div>
+                                    <div>
+                                        <a href="${file.url}" class="btn btn-sm btn-outline-success me-1">
+                                            <i class="bi bi-download"></i> Baixar
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-info" onclick="previewImage('${file.name}')">
+                                            <i class="bi bi-eye"></i> Ver
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        imageHtml = '<p class="text-muted">Nenhum arquivo de imagem</p>';
                     }
                 } else {
-                    html += '<div class="alert alert-info">Nenhum arquivo gerado ainda.</div>';
+                    csvHtml = pdfHtml = imageHtml = '<p class="text-muted">Nenhum arquivo gerado ainda</p>';
                 }
                 
-                document.getElementById('files-list').innerHTML = html;
+                document.getElementById('csv-files-list').innerHTML = csvHtml;
+                document.getElementById('pdf-files-list').innerHTML = pdfHtml;
+                document.getElementById('image-files-list').innerHTML = imageHtml;
+                
+                // Atualizar contadores
+                document.getElementById('csv-count').textContent = csvFiles ? csvFiles.length : 0;
+                document.getElementById('pdf-count').textContent = pdfFiles ? pdfFiles.length : 0;
+                document.getElementById('image-count').textContent = imageFiles ? imageFiles.length : 0;
                 
             } catch (error) {
                 console.error('Erro ao carregar arquivos:', error);
-                document.getElementById('files-list').innerHTML = 
-                    '<div class="alert alert-danger">Erro ao carregar arquivos.</div>';
+                document.getElementById('csv-files-list').innerHTML = 
+                    '<p class="text-danger">Erro ao carregar arquivos</p>';
             }
+        }
+        
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('csv-count').textContent = data.csv_files_count;
+                    document.getElementById('pdf-count').textContent = data.pdf_files_count;
+                    document.getElementById('image-count').textContent = data.image_files_count;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+        
+        function previewImage(filename) {
+            const imageUrl = `/api/download/image/${filename}`;
+            const modalHtml = `
+                <div class="text-center">
+                    <h5>${filename}</h5>
+                    <img src="${imageUrl}" class="img-fluid mt-3" style="max-height: 500px;">
+                    <div class="mt-3">
+                        <a href="${imageUrl}" class="btn btn-success" download>
+                            <i class="bi bi-download"></i> Baixar Imagem
+                        </a>
+                    </div>
+                </div>
+            `;
+            showResultModal('Visualizar Imagem', modalHtml);
         }
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
+            updateCurrentDate();
+            setInterval(updateCurrentDate, 60000); // Atualizar a cada minuto
+            
             loadProducts();
+            loadEmailSettings();
             loadFiles();
-            addLog('Sistema inicializado', 'success');
+            loadDashboard();
+            addLog('Sistema inicializado com sucesso', 'success');
             
             // Verificar status inicial
             fetch('/api/status')
