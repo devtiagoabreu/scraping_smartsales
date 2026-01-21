@@ -297,6 +297,43 @@
                 console.error('Erro ao carregar arquivos:', error);
             }
         }
+
+        async function createCSVs() {
+            addLog('Criando CSVs a partir dos resultados...', 'info');
+            
+            try {
+                const response = await fetch('/api/create-csvs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✅ ${data.message}`, 'success');
+                    
+                    // Mostrar arquivos criados
+                    if (data.files && data.files.length > 0) {
+                        let html = '<div class="alert alert-success mt-3"><h5>Arquivos Criados:</h5><ul>';
+                        data.files.forEach(file => {
+                            html += `<li>${file.produto}: <a href="/api/download/csv/${file.filename}">${file.filename}</a></li>`;
+                        });
+                        html += '</ul></div>';
+                        
+                        // Adicionar ao log ou mostrar em algum lugar
+                        document.getElementById('results').innerHTML = html;
+                    }
+                    
+                    // Atualizar lista de arquivos
+                    loadFiles();
+                    
+                } else {
+                    addLog(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLog('Erro ao criar CSVs: ' + error, 'error');
+            }
+        }
         
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
