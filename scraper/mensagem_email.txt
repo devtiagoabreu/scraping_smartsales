@@ -8,9 +8,9 @@ Dados incluídos:
 - Estoque disponível por produto
 - Pedidos em andamento
 - Previsões de entrega
-- Disponibilidade por cor/variante
+- Disponibilidade por cor
 
 Para dúvidas ou mais informações, entre em contato.
 
 Atenciosamente,
-Sistema DGB COMEX estoque
+Sistema DGB COMEX - ESTOQUE WEB SCRAPER
