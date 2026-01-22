@@ -97,17 +97,21 @@
                     <div class="card-body">
                         <h5 class="card-title"><i class="bi bi-bar-chart"></i> Estatísticas do Sistema</h5>
                         <div class="row text-center mt-3">
-                            <div class="col-4">
+                            <div class="col-3">
                                 <div class="stats-number" id="csv-count">0</div>
                                 <small>CSVs</small>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <div class="stats-number" id="pdf-count">0</div>
                                 <small>PDFs</small>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <div class="stats-number" id="image-count">0</div>
                                 <small>Imagens</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="stats-number" id="xlsx-count">0</div>
+                                <small>XLSX</small>
                             </div>
                         </div>
                     </div>
@@ -282,6 +286,12 @@
                                     <i class="bi bi-image"></i> Limpar arquivos de Imagem
                                 </label>
                             </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="clean-xlsx" checked>
+                                <label class="form-check-label" for="clean-xlsx">
+                                    <i class="bi bi-file-earmark-excel"></i> Limpar arquivos XLSX
+                                </label>
+                            </div>
                         </div>
                         
                         <div class="d-grid">
@@ -321,6 +331,12 @@
                                     <i class="bi bi-image"></i> Imagens
                                 </button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="xlsx-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#xlsx-files" type="button" role="tab">
+                                    <i class="bi bi-file-earmark-excel"></i> XLSX
+                                </button>
+                            </li>
                         </ul>
                         <div class="tab-content p-3" id="filesTabContent">
                             <div class="tab-pane fade show active" id="csv-files" role="tabpanel">
@@ -331,6 +347,9 @@
                             </div>
                             <div class="tab-pane fade" id="image-files" role="tabpanel">
                                 <div id="image-files-list"></div>
+                            </div>
+                            <div class="tab-pane fade" id="xlsx-files" role="tabpanel">
+                                <div id="xlsx-files-list"></div>
                             </div>
                         </div>
                     </div>
@@ -589,8 +608,9 @@
                 if (data.success) {
                     addLog(`✅ ${data.message}`, 'success');
                     
-                    // Atualizar lista de arquivos
+                    // Atualizar lista de arquivos automaticamente
                     loadFiles();
+                    loadDashboard();
                     
                 } else {
                     addLog(`❌ ${data.error}`, 'error');
@@ -609,7 +629,11 @@
                 
                 if (data.success) {
                     addLog('Consolidação concluída: ' + data.message, 'success');
+                    
+                    // Atualizar lista de arquivos automaticamente
                     loadFiles();
+                    loadDashboard();
+                    
                 } else {
                     addLog('Erro na consolidação: ' + data.error, 'error');
                 }
@@ -654,8 +678,9 @@
                     
                     showResultModal('Resultado da Geração de PDFs', resultHtml);
                     
-                    // Atualizar lista de arquivos
+                    // Atualizar lista de arquivos automaticamente
                     loadFiles();
+                    loadDashboard();
                     
                 } else {
                     addLog(`❌ ${data.error}`, 'error');
@@ -759,14 +784,16 @@
             const cleanDebug = document.getElementById('clean-debug').checked;
             const cleanPDFs = document.getElementById('clean-pdfs').checked;
             const cleanImages = document.getElementById('clean-images').checked;
+            const cleanXLSX = document.getElementById('clean-xlsx').checked;
             
             let optionsText = '';
             if (cleanCSV) optionsText += '• Arquivos CSV<br/>';
             if (cleanDebug) optionsText += '• Arquivos de Debug<br/>';
             if (cleanPDFs) optionsText += '• Arquivos PDF<br/>';
             if (cleanImages) optionsText += '• Arquivos de Imagem<br/>';
+            if (cleanXLSX) optionsText += '• Arquivos XLSX<br/>';
             
-            if (!cleanCSV && !cleanDebug && !cleanPDFs && !cleanImages) {
+            if (!cleanCSV && !cleanDebug && !cleanPDFs && !cleanImages && !cleanXLSX) {
                 showResultModal('Atenção', 'Selecione pelo menos uma opção para limpar');
                 return;
             }
@@ -775,7 +802,7 @@
                 `<p>Serão removidos:</p>${optionsText}`;
             
             // Armazenar opções para uso posterior
-            window.cleanOptions = { cleanCSV, cleanDebug, cleanPDFs, cleanImages };
+            window.cleanOptions = { cleanCSV, cleanDebug, cleanPDFs, cleanImages, cleanXLSX };
             
             // Mostrar modal
             const cleanModal = new bootstrap.Modal(document.getElementById('cleanModal'));
@@ -794,7 +821,10 @@
                 
                 if (data.success) {
                     addLog(`✅ ${data.message}`, 'success');
+                    
+                    // Atualizar lista de arquivos e dashboard automaticamente
                     loadFiles();
+                    loadDashboard();
                     
                     // Fechar modal
                     const cleanModal = bootstrap.Modal.getInstance(document.getElementById('cleanModal'));
@@ -842,7 +872,8 @@
                         document.getElementById('start-btn').innerHTML = 
                             '<i class="bi bi-play-circle"></i> Iniciar Scraping';
                         
-                        // Atualizar dashboard
+                        // Atualizar dashboard automaticamente ao terminar
+                        loadFiles();
                         loadDashboard();
                     }
                 } catch (error) {
@@ -887,17 +918,25 @@
                 let csvHtml = '';
                 let pdfHtml = '';
                 let imageHtml = '';
+                let xlsxHtml = '';
+                
+                // Inicializar arrays para os contadores
+                let csvFiles = [];
+                let pdfFiles = [];
+                let imageFiles = [];
+                let xlsxFiles = [];
                 
                 if (data.files && data.files.length > 0) {
                     // Separar por tipo
-                    const csvFiles = data.files.filter(f => f.type === 'csv');
-                    const pdfFiles = data.files.filter(f => f.type === 'pdf');
-                    const imageFiles = data.files.filter(f => f.type === 'image');
+                    csvFiles = data.files.filter(f => f.type === 'csv');
+                    pdfFiles = data.files.filter(f => f.type === 'pdf');
+                    imageFiles = data.files.filter(f => f.type === 'image');
+                    xlsxFiles = data.files.filter(f => f.type === 'xlsx');
                     
                     // CSV Files
                     if (csvFiles.length > 0) {
                         csvFiles.forEach(file => {
-                            const fileSize = (file.size / 1024).toFixed(1);
+                            const fileSize = file.size ? (file.size / 1024).toFixed(1) : '0';
                             csvHtml += `
                                 <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                                     <div>
@@ -905,7 +944,7 @@
                                         <span class="ms-2">${file.name}</span>
                                         <small class="text-muted d-block ms-4">${fileSize} KB</small>
                                     </div>
-                                    <a href="${file.url}" class="btn btn-sm btn-outline-primary">
+                                    <a href="${file.url}" class="btn btn-sm btn-outline-primary" download>
                                         <i class="bi bi-download"></i> Baixar
                                     </a>
                                 </div>
@@ -918,7 +957,7 @@
                     // PDF Files
                     if (pdfFiles.length > 0) {
                         pdfFiles.forEach(file => {
-                            const fileSize = (file.size / 1024).toFixed(1);
+                            const fileSize = file.size ? (file.size / 1024).toFixed(1) : '0';
                             pdfHtml += `
                                 <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                                     <div>
@@ -926,7 +965,7 @@
                                         <span class="ms-2">${file.name}</span>
                                         <small class="text-muted d-block ms-4">${fileSize} KB</small>
                                     </div>
-                                    <a href="${file.url}" class="btn btn-sm btn-outline-danger">
+                                    <a href="${file.url}" class="btn btn-sm btn-outline-danger" download>
                                         <i class="bi bi-download"></i> Baixar
                                     </a>
                                 </div>
@@ -939,7 +978,7 @@
                     // Image Files
                     if (imageFiles.length > 0) {
                         imageFiles.forEach(file => {
-                            const fileSize = (file.size / 1024).toFixed(1);
+                            const fileSize = file.size ? (file.size / 1024).toFixed(1) : '0';
                             imageHtml += `
                                 <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                                     <div>
@@ -948,7 +987,7 @@
                                         <small class="text-muted d-block ms-4">${fileSize} KB</small>
                                     </div>
                                     <div>
-                                        <a href="${file.url}" class="btn btn-sm btn-outline-success me-1">
+                                        <a href="${file.url}" class="btn btn-sm btn-outline-success me-1" download>
                                             <i class="bi bi-download"></i> Baixar
                                         </a>
                                         <button class="btn btn-sm btn-outline-info" onclick="previewImage('${file.name}')">
@@ -961,22 +1000,54 @@
                     } else {
                         imageHtml = '<p class="text-muted">Nenhum arquivo de imagem</p>';
                     }
+                    
+                    // XLSX Files (NOVO)
+                    if (xlsxFiles.length > 0) {
+                        xlsxFiles.forEach(file => {
+                            const fileSize = file.size ? (file.size / 1024).toFixed(1) : '0';
+                            xlsxHtml += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                    <div>
+                                        <i class="bi bi-file-earmark-excel text-success"></i>
+                                        <span class="ms-2">${file.name}</span>
+                                        <small class="text-muted d-block ms-4">${fileSize} KB</small>
+                                    </div>
+                                    <a href="${file.url}" class="btn btn-sm btn-outline-success" download>
+                                        <i class="bi bi-download"></i> Baixar
+                                    </a>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        xlsxHtml = '<p class="text-muted">Nenhum arquivo XLSX</p>';
+                    }
                 } else {
-                    csvHtml = pdfHtml = imageHtml = '<p class="text-muted">Nenhum arquivo gerado ainda</p>';
+                    csvHtml = '<p class="text-muted">Nenhum arquivo gerado ainda</p>';
+                    pdfHtml = '<p class="text-muted">Nenhum arquivo gerado ainda</p>';
+                    imageHtml = '<p class="text-muted">Nenhum arquivo gerado ainda</p>';
+                    xlsxHtml = '<p class="text-muted">Nenhum arquivo gerado ainda</p>';
                 }
                 
                 document.getElementById('csv-files-list').innerHTML = csvHtml;
                 document.getElementById('pdf-files-list').innerHTML = pdfHtml;
                 document.getElementById('image-files-list').innerHTML = imageHtml;
+                document.getElementById('xlsx-files-list').innerHTML = xlsxHtml;
                 
                 // Atualizar contadores
-                document.getElementById('csv-count').textContent = csvFiles ? csvFiles.length : 0;
-                document.getElementById('pdf-count').textContent = pdfFiles ? pdfFiles.length : 0;
-                document.getElementById('image-count').textContent = imageFiles ? imageFiles.length : 0;
+                document.getElementById('csv-count').textContent = csvFiles.length;
+                document.getElementById('pdf-count').textContent = pdfFiles.length;
+                document.getElementById('image-count').textContent = imageFiles.length;
+                document.getElementById('xlsx-count').textContent = xlsxFiles.length;
                 
             } catch (error) {
                 console.error('Erro ao carregar arquivos:', error);
                 document.getElementById('csv-files-list').innerHTML = 
+                    '<p class="text-danger">Erro ao carregar arquivos</p>';
+                document.getElementById('pdf-files-list').innerHTML = 
+                    '<p class="text-danger">Erro ao carregar arquivos</p>';
+                document.getElementById('image-files-list').innerHTML = 
+                    '<p class="text-danger">Erro ao carregar arquivos</p>';
+                document.getElementById('xlsx-files-list').innerHTML = 
                     '<p class="text-danger">Erro ao carregar arquivos</p>';
             }
         }
@@ -990,6 +1061,7 @@
                     document.getElementById('csv-count').textContent = data.csv_files_count;
                     document.getElementById('pdf-count').textContent = data.pdf_files_count;
                     document.getElementById('image-count').textContent = data.image_files_count;
+                    document.getElementById('xlsx-count').textContent = data.xlsx_files_count || 0;
                 }
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);

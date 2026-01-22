@@ -38,10 +38,12 @@ CSV_FOLDER = 'csv'
 DEBUG_FOLDER = 'debug'
 PDF_FOLDER = 'pdfs'
 IMAGE_FOLDER = 'images'
+XLSX_FOLDER = 'xlsx'  # Nova pasta para arquivos Excel
 os.makedirs(CSV_FOLDER, exist_ok=True)
 os.makedirs(DEBUG_FOLDER, exist_ok=True)
 os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(IMAGE_FOLDER, exist_ok=True)
+os.makedirs(XLSX_FOLDER, exist_ok=True)  # Criar pasta XLSX
 
 # Status global
 scraping_status = {
@@ -237,6 +239,7 @@ def clean_data():
         clean_debug = data.get('clean_debug', True)
         clean_pdfs = data.get('clean_pdfs', True)
         clean_images = data.get('clean_images', True)
+        clean_xlsx = data.get('clean_xlsx', True)  # Nova opção para limpar XLSX
         
         files_deleted = []
         
@@ -280,6 +283,16 @@ def clean_data():
                     except:
                         pass
         
+        # Limpar XLSX (NOVA FUNCIONALIDADE)
+        if clean_xlsx and os.path.exists(XLSX_FOLDER):
+            for file in os.listdir(XLSX_FOLDER):
+                if file.endswith('.xlsx'):
+                    try:
+                        os.remove(os.path.join(XLSX_FOLDER, file))
+                        files_deleted.append(f"xlsx/{file}")
+                    except:
+                        pass
+        
         # Resetar status
         scraping_status['results'] = []
         scraping_status['csv_files'] = []
@@ -295,7 +308,7 @@ def clean_data():
 
 @app.route('/api/send-email', methods=['POST'])
 def send_email():
-    """Envia email com relatório PDF"""
+    """Envia email com relatório PDF usando Gmail"""
     try:
         # Verificar se há PDF disponível
         pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.startswith('relatorio_todos_produtos_')]
@@ -332,15 +345,15 @@ Este relatório foi gerado automaticamente pelo sistema DGB Scraper.
 Atenciosamente,
 Sistema DGB Scraper"""
         
-        # Configurações do email
-        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.getenv('SMTP_PORT', 587))
-        smtp_username = os.getenv('SMTP_USERNAME')
-        smtp_password = os.getenv('SMTP_PASSWORD')
-        email_from = os.getenv('EMAIL_FROM', smtp_username)
+        # CONFIGURAÇÕES CORRETAS PARA GMAIL
+        # Forçar as credenciais corretas para evitar problemas com .env
+        smtp_server = 'smtp.gmail.com'
+        smtp_port = 587
+        smtp_username = 'dgbcomex@gmail.com'  # CORRETO: @gmail.com, NÃO @gmx.com
+        smtp_password = 'rsxc jmaz qocw ywmy'
+        email_from = 'dgbcomex@gmail.com'
         
-        if not smtp_username or not smtp_password:
-            return jsonify({'success': False, 'error': 'Configurações de email não encontradas no .env'})
+        logger.info(f"📧 Usando Gmail: {smtp_username}")
         
         # Enviar email para cada contato
         emails_sent = []
@@ -366,29 +379,175 @@ Sistema DGB Scraper"""
                                   f'attachment; filename="{os.path.basename(latest_pdf)}"')
                     msg.attach(part)
                 
-                # Enviar email
-                with smtplib.SMTP(smtp_server, smtp_port) as server:
-                    server.starttls()
+                # Conectar e enviar usando Gmail
+                logger.info(f"📤 Enviando para {contact} via Gmail...")
+                
+                # Tentar com timeout maior e tratamento de erros
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+                server.set_debuglevel(1)  # Ativar debug para ver mensagens
+                
+                try:
+                    server.ehlo()
+                    server.starttls()  # TLS para Gmail
+                    server.ehlo()
                     server.login(smtp_username, smtp_password)
                     server.send_message(msg)
+                    server.quit()
+                    
+                    emails_sent.append(contact)
+                    logger.info(f"✅ Email enviado para: {contact}")
+                    
+                except Exception as e:
+                    server.quit()
+                    raise e
                 
-                emails_sent.append(contact)
-                logger.info(f'Email enviado para: {contact}')
+                # Pequena pausa entre emails
+                import time
+                time.sleep(1)
                 
             except Exception as e:
-                emails_failed.append({'email': contact, 'error': str(e)})
-                logger.error(f'Erro ao enviar email para {contact}: {e}')
+                error_msg = str(e)
+                logger.error(f"❌ Falha para {contact}: {error_msg}")
+                emails_failed.append({
+                    'email': contact, 
+                    'error': error_msg
+                })
+        
+        # Resultado
+        if not emails_sent:
+            # Tentar diagnóstico
+            logger.error("🔍 Tentando diagnóstico de conexão...")
+            
+            # Teste manual simples
+            test_command = """
+            TESTE MANUAL NO PYTHON:
+            
+            import smtplib
+            
+            try:
+                server = smtplib.SMTP('smtp.gmail.com', 587, timeout=30)
+                server.set_debuglevel(1)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login('dgbcomex@gmail.com', 'rsxc jmaz qocw ywmy')
+                print("✅ Login bem-sucedido!")
+                server.quit()
+            except Exception as e:
+                print(f"❌ Erro: {e}")
+            """
+            logger.info(test_command)
+            
+            return jsonify({
+                'success': False,
+                'error': 'Falha ao enviar emails. A conexão foi fechada inesperadamente.',
+                'emails_sent': emails_sent,
+                'emails_failed': emails_failed,
+                'config': {
+                    'server': smtp_server,
+                    'port': smtp_port,
+                    'username': smtp_username,
+                    'password_length': len(smtp_password)
+                },
+                'help': 'Execute o teste manual acima para ver o erro detalhado'
+            })
         
         return jsonify({
             'success': True,
-            'message': f'Emails enviados: {len(emails_sent)} sucesso, {len(emails_failed)} falhas',
+            'message': f'✅ Emails enviados: {len(emails_sent)} sucesso, {len(emails_failed)} falhas',
             'emails_sent': emails_sent,
             'emails_failed': emails_failed,
             'pdf_file': os.path.basename(latest_pdf)
         })
         
     except Exception as e:
-        logger.error(f'Erro no envio de email: {e}')
+        logger.error(f'❌ Erro geral no envio: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': f'Erro no envio: {str(e)}'})
+
+@app.route('/api/test-email-setup', methods=['GET'])
+def test_email_setup():
+    """Testa a configuração de email atual"""
+    try:
+        # Usar configurações fixas para Gmail
+        smtp_server = 'smtp.gmail.com'
+        smtp_port = 587
+        smtp_username = 'dgbcomex@gmail.com'
+        smtp_password = 'rsxc jmaz qocw ywmy'
+        
+        logger.info(f"🔍 Testando configuração de Gmail...")
+        logger.info(f"   Servidor: {smtp_server}")
+        logger.info(f"   Porta: {smtp_port}")
+        logger.info(f"   Usuário: {smtp_username}")
+        
+        # Testar conexão
+        try:
+            logger.info("📡 Conectando ao servidor SMTP...")
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=30)
+            server.set_debuglevel(1)
+            
+            logger.info("👋 Enviando EHLO...")
+            server.ehlo()
+            
+            logger.info("🔒 Iniciando TLS...")
+            server.starttls()
+            
+            logger.info("👋 EHLO após TLS...")
+            server.ehlo()
+            
+            logger.info("🔐 Tentando login...")
+            server.login(smtp_username, smtp_password)
+            
+            logger.info("✅ Login bem-sucedido!")
+            
+            server.quit()
+            
+            return jsonify({
+                'success': True,
+                'message': '✅ Configuração de Gmail funcionando perfeitamente!',
+                'config': {
+                    'server': smtp_server,
+                    'port': smtp_port,
+                    'username': smtp_username,
+                    'auth_method': 'TLS'
+                }
+            })
+            
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"❌ Falha na conexão: {error_msg}")
+            
+            # Análise do erro
+            error_analysis = ""
+            if "535" in error_msg or "Invalid" in error_msg:
+                error_analysis = "ERRO DE AUTENTICAÇÃO: Senha de aplicativo incorreta ou conta não tem verificação em duas etapas ativada."
+            elif "Connection refused" in error_msg:
+                error_analysis = "CONEXÃO RECUSADA: Firewall pode estar bloqueando a porta 587."
+            elif "timeout" in error_msg.lower():
+                error_analysis = "TIMEOUT: Servidor não respondeu. Verifique sua conexão com a internet."
+            
+            return jsonify({
+                'success': False,
+                'error': f'Falha na conexão: {error_msg}',
+                'analysis': error_analysis,
+                'config': {
+                    'server': smtp_server,
+                    'port': smtp_port,
+                    'username': smtp_username
+                },
+                'solutions': [
+                    '1. Verifique se a senha de aplicativo está correta: rsxc jmaz qocw ywmy',
+                    '2. Verifique se a verificação em duas etapas está ativa no Gmail',
+                    '3. Acesse: https://myaccount.google.com/security',
+                    '4. Vá para "Senhas de aplicativo" e gere uma nova se necessário',
+                    '5. Teste manualmente no terminal Python:',
+                    '   python -c "import smtplib; s=smtplib.SMTP(\'smtp.gmail.com\',587); s.starttls(); s.login(\'dgbcomex@gmail.com\',\'rsxc jmaz qocw ywmy\'); print(\'OK\')"'
+                ]
+            })
+            
+    except Exception as e:
+        logger.error(f"❌ Erro no teste de conexão: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/email-contacts', methods=['GET', 'POST'])
@@ -469,9 +628,17 @@ def download_image(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 404
 
+@app.route('/api/download/xlsx/<filename>')
+def download_xlsx(filename):
+    """Baixa arquivo XLSX"""
+    try:
+        return send_file(os.path.join(XLSX_FOLDER, filename), as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
+
 @app.route('/api/files')
 def list_files():
-    """Lista arquivos CSV, PDF e imagens"""
+    """Lista arquivos CSV, PDF, imagens e XLSX"""
     try:
         files = []
         
@@ -506,6 +673,17 @@ def list_files():
                     'type': 'image',
                     'size': os.path.getsize(filepath),
                     'url': f'/api/download/image/{file}'
+                })
+        
+        # XLSX files (NOVO)
+        for file in os.listdir(XLSX_FOLDER):
+            if file.endswith('.xlsx'):
+                filepath = os.path.join(XLSX_FOLDER, file)
+                files.append({
+                    'name': file,
+                    'type': 'xlsx',
+                    'size': os.path.getsize(filepath),
+                    'url': f'/api/download/xlsx/{file}'
                 })
         
         return jsonify({'files': sorted(files, key=lambda x: x['name'], reverse=True)})
@@ -588,7 +766,7 @@ def test_parser(produto):
         registros_especifico = parser_dgb.parse_html_dgb_simples(html_content, produto)
         
         # Método 2: Parser agressivo
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now().strftime('%Y-%m-d %H:%M:%S')
         artigo = str(produto).lstrip('0')
         registros_agressivo = parser_dgb.parse_html_agressivo_especifico(html_content, produto, timestamp, artigo)
         
@@ -641,6 +819,7 @@ def get_dashboard():
         csv_files = [f for f in os.listdir(CSV_FOLDER) if f.endswith('.csv')]
         pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith('.pdf')]
         image_files = [f for f in os.listdir(IMAGE_FOLDER) if f.endswith(('.jpg', '.jpeg', '.png'))]
+        xlsx_files = [f for f in os.listdir(XLSX_FOLDER) if f.endswith('.xlsx')]  # Novo
         
         # Último scraping
         last_scraping = {
@@ -656,6 +835,7 @@ def get_dashboard():
             'csv_files_count': len(csv_files),
             'pdf_files_count': len(pdf_files),
             'image_files_count': len(image_files),
+            'xlsx_files_count': len(xlsx_files),  # Novo
             'last_scraping': last_scraping,
             'is_running': scraping_status['running']
         })
@@ -721,6 +901,7 @@ if __name__ == '__main__':
     os.makedirs('debug', exist_ok=True)
     os.makedirs('pdfs', exist_ok=True)
     os.makedirs('images', exist_ok=True)
+    os.makedirs('xlsx', exist_ok=True)  # Nova pasta
     
     # Criar arquivos padrão se não existirem
     if not os.path.exists('contatos.txt'):
@@ -739,8 +920,10 @@ Atenciosamente,
 Sistema DGB Scraper""")
     
     logger.info("✅ Sistema iniciado com sucesso!")
+    logger.info("📧 Configuração de email: Gmail (dgbcomex@gmail.com)")
     logger.info(f"👤 Usuário: {os.getenv('DGB_USUARIO')}")
     logger.info(f"📁 Pasta CSV: {os.path.abspath('csv')}")
+    logger.info(f"📊 Pasta XLSX: {os.path.abspath('xlsx')}")  # Novo
     logger.info(f"🐛 Pasta Debug: {os.path.abspath('debug')}")
     logger.info(f"📄 Pasta PDFs: {os.path.abspath('pdfs')}")
     logger.info(f"🖼️  Pasta Images: {os.path.abspath('images')}")

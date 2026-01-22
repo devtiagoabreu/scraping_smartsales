@@ -211,7 +211,7 @@ def consolidar_dados_estruturados():
         
         # Criar Excel com abas por produto
         excel_filename = f"consolidado_organizado_{timestamp}.xlsx"
-        excel_path = os.path.join('csv', excel_filename)
+        excel_path = os.path.join('xlsx', excel_filename)
         
         logger.info("Criando arquivo Excel...")
         
