@@ -1,4 +1,4 @@
-# scraper.py - ATUALIZADO para salvar CSVs automaticamente e HTML de debug
+# scraper.py - VERSÃO CORRIGIDA para o sistema DGB
 import os
 import time
 import csv
@@ -19,7 +19,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 class DGBScraper:
-    def __init__(self, headless=True):
+    def __init__(self, headless=True):  # Pode voltar para True
         self.headless = headless
         self.driver = None
         self.usuario = os.getenv('DGB_USUARIO')
@@ -108,7 +108,7 @@ class DGBScraper:
             return False
     
     def search_product(self, codigo, situacao="TINTO"):
-        """Pesquisa um produto específico e retorna HTML"""
+        """Pesquisa um produto específico e retorna HTML - VERSÃO CORRIGIDA"""
         try:
             logger.info(f"Pesquisando produto {codigo}...")
             
@@ -125,18 +125,55 @@ class DGBScraper:
             situacao_field.clear()
             situacao_field.send_keys(situacao)
             
-            # Clicar em pesquisar
-            pesquisar_button = self.driver.find_element(By.ID, "j_idt67")
-            pesquisar_button.click()
+            # AGORA O CORRETO: O botão tem id="j_idt60" e é um input type="submit"
+            logger.info("Procurando botão 'Pesquisar' com id='j_idt60'...")
             
-            # Aguardar resultados
-            time.sleep(8)  # Aumentar tempo de espera
+            # Método 1: Procurar pelo ID correto
+            try:
+                pesquisar_button = self.driver.find_element(By.ID, "j_idt60")
+                logger.info(f"✅ Botão encontrado pelo ID: j_idt60")
+                logger.info(f"   Tipo: {pesquisar_button.get_attribute('type')}")
+                logger.info(f"   Value: {pesquisar_button.get_attribute('value')}")
+            except:
+                # Método 2: Procurar pelo value "Pesquisar"
+                try:
+                    pesquisar_button = self.driver.find_element(
+                        By.XPATH, "//input[@type='submit' and @value='Pesquisar']"
+                    )
+                    logger.info("✅ Botão encontrado pelo value='Pesquisar'")
+                except:
+                    # Método 3: Procurar qualquer input submit
+                    try:
+                        pesquisar_button = self.driver.find_element(
+                            By.XPATH, "//input[@type='submit']"
+                        )
+                        logger.info("✅ Botão encontrado pelo type='submit'")
+                    except Exception as e:
+                        logger.error(f"❌ Botão não encontrado: {e}")
+                        # Listar todos os elementos para debug
+                        all_inputs = self.driver.find_elements(By.TAG_NAME, "input")
+                        logger.info(f"Total de inputs na página: {len(all_inputs)}")
+                        for i, inp in enumerate(all_inputs[:20]):
+                            inp_type = inp.get_attribute('type') or 'sem-tipo'
+                            inp_id = inp.get_attribute('id') or 'sem-id'
+                            inp_value = inp.get_attribute('value') or 'sem-valor'
+                            if inp_type == 'submit':
+                                logger.info(f"  Input submit {i}: id='{inip_id}', value='{inp_value}'")
+                        raise Exception("Botão 'Pesquisar' não encontrado")
+            
+            # Clicar em pesquisar
+            pesquisar_button.click()
+            logger.info("✅ Botão clicado")
+            
+            # Aguardar resultados - aumentar tempo
+            logger.info("Aguardando resultados (8 segundos)...")
+            time.sleep(8)
             
             # Verificar se há resultados
             try:
                 # Verificar se há a mensagem de total
                 self.driver.find_element(By.ID, "estoqueTotal")
-                logger.info("Resultados encontrados para o produto")
+                logger.info("✅ Resultados encontrados para o produto")
             except:
                 logger.warning("Possivelmente nenhum resultado encontrado")
             
@@ -152,6 +189,14 @@ class DGBScraper:
             
         except Exception as e:
             logger.error(f"Erro ao pesquisar produto {codigo}: {e}")
+            # Tentar salvar screenshot para debug
+            try:
+                screenshot_path = f"debug_error_{codigo}.png"
+                self.driver.save_screenshot(screenshot_path)
+                logger.info(f"Screenshot salvo: {screenshot_path}")
+            except:
+                pass
+            
             return {
                 'success': False,
                 'codigo': codigo,
@@ -318,7 +363,7 @@ def create_csv_from_html(html_content, produto_codigo):
         return None
 
 def run_scraping_thread(status_dict):
-    """Função executada na thread - ATUALIZADA para salvar CSVs e HTML de debug"""
+    """Função executada na thread - VERSÃO CORRIGIDA"""
     scraper = None
     
     try:
@@ -330,8 +375,8 @@ def run_scraping_thread(status_dict):
         status_dict['message'] = f'Processando {len(produtos)} produtos'
         status_dict['csv_files'] = []  # Lista de CSVs criados
         
-        # Iniciar scraper (headless=False para ver o que está acontecendo)
-        scraper = DGBScraper(headless=False)
+        # Iniciar scraper
+        scraper = DGBScraper(headless=False)  # False para ver o que está acontecendo
         
         # Login
         status_dict['message'] = 'Realizando login...'
@@ -358,7 +403,9 @@ def run_scraping_thread(status_dict):
             status_dict['progress'] = int((i / len(produtos)) * 100)
             status_dict['message'] = f'Processando {produto} ({i}/{len(produtos)})'
             
-            logger.info(f"--- Processando produto {produto} ---")
+            logger.info(f"\n{'='*60}")
+            logger.info(f"Processando produto {produto} ({i}/{len(produtos)})")
+            logger.info(f"{'='*60}")
             
             # Pesquisar produto
             resultado = scraper.search_product(produto)
@@ -389,8 +436,13 @@ def run_scraping_thread(status_dict):
         status_dict['message'] = f'✅ Scraping concluído! {sucessos} sucessos, {erros} erros'
         status_dict['end_time'] = datetime.now().isoformat()
         
-        logger.info(f"📊 Resumo: {sucessos} sucessos, {erros} erros")
+        logger.info(f"\n{'='*60}")
+        logger.info(f"📊 RESUMO FINAL")
+        logger.info(f"{'='*60}")
+        logger.info(f"✅ Sucessos: {sucessos}")
+        logger.info(f"❌ Erros: {erros}")
         logger.info(f"📁 CSVs criados: {len(status_dict['csv_files'])}")
+        logger.info(f"{'='*60}")
         
     except Exception as e:
         logger.error(f"Erro no scraping: {e}")

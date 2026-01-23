@@ -13,3 +13,5 @@ Execução:
 
 bash
 python app.py
+
+\estoqueDGBComex\scraping_smartsales\scraper
