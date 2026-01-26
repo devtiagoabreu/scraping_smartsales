@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-01-23T15:53:52.515451",
+  "subject": "CONVITE PARA UM EVENTO DOS SENTIDOS - teste de email massa",
+  "total_contacts": 3,
+  "sent": 3,
+  "failed": 0,
+  "details": [],
+  "emails_sent": [
+    {
+      "email": "faturamento@dgbcomex.com.br",
+      "nome": "Meire Maravilhosa"
+    },
+    {
+      "email": "comercial@dgbcomex.com.br",
+      "nome": "Raquel Deslumbrante"
+    },
+    {
+      "email": "hello@tiagoabreu.dev",
+      "nome": "Tiago"
+    }
+  ],
+  "emails_failed": [],
+  "completed_at": "2026-01-23T15:54:05.964399"
+}

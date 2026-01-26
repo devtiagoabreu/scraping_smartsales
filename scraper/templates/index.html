@@ -6,6 +6,8 @@
     <title>DGB COMEX - WEB SCRAPER V1.0</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Adicionar Quill.js para editor de email -->
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
     <style>
         body { 
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -74,11 +76,113 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Menu Hamburguer */
+        .hamburger-menu {
+            cursor: pointer;
+            font-size: 24px;
+            margin-right: 15px;
+            color: white;
+        }
+        
+        /* Modal do Editor de Email */
+        #emailEditorModal .modal-dialog {
+            max-width: 95%;
+            width: 95%;
+            height: 90vh;
+        }
+        #emailEditorModal .modal-content {
+            height: 90vh;
+        }
+        #emailEditorModal .modal-body {
+            height: calc(90vh - 120px);
+            overflow-y: auto;
+        }
+        
+        /* Editor Quill */
+        #editor {
+            height: 400px;
+        }
+        
+        /* Preview do Email */
+        .email-preview {
+            border: 1px solid #ddd;
+            padding: 20px;
+            background: white;
+            min-height: 300px;
+        }
+        
+        /* Tabs do Editor */
+        .editor-tabs .nav-link {
+            border-radius: 0;
+        }
+        
+        /* Anexos */
+        .attachment-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+        }
+        
+        /* Contatos */
+        .contact-item {
+            background: #e9f7ef;
+            border: 1px solid #d4edda;
+            border-radius: 5px;
+            padding: 8px 12px;
+            margin-bottom: 5px;
+        }
+        
+        /* Fullscreen para editor avançado */
+        .fullscreen-editor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        /* Barra de ferramentas personalizada */
+        .custom-toolbar {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
         <div class="container">
+            <!-- Menu Hamburguer -->
+            <div class="hamburger-menu" id="hamburgerMenu">
+                <i class="bi bi-list"></i>
+            </div>
+            
+            <!-- Menu Dropdown (inicialmente oculto) -->
+            <div class="dropdown-menu" id="mainMenuDropdown" style="position: absolute; top: 100%; left: 10px; z-index: 1000; display: none;">
+                <a class="dropdown-item" href="#" onclick="showEmailEditor()">
+                    <i class="bi bi-envelope"></i> Email em Massa
+                </a>
+                <a class="dropdown-item" href="#" onclick="testEmailConnection()">
+                    <i class="bi bi-link-45deg"></i> Testar Conexão Email
+                </a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#" onclick="openTools()">
+                    <i class="bi bi-tools"></i> Ferramentas
+                </a>
+                <a class="dropdown-item" href="#" onclick="openSettings()">
+                    <i class="bi bi-gear"></i> Configurações
+                </a>
+            </div>
+            
             <a class="navbar-brand" href="#">
                 <i class="bi bi-robot"></i> DGB COMEX - WEB SCRAPER FOR SMARTSALES MICRODATA V1.0
             </a>
@@ -89,268 +193,277 @@
     </nav>
 
     <div class="container mt-4">
-        <div class="row">
-            <!-- Coluna Esquerda -->
-            <div class="col-md-4">
-                <!-- Cartão de Estatísticas -->
+        <!-- Dashboard de Status -->
+        <div class="row mb-4">
+            <div class="col-md-3">
                 <div class="card stats-card">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="bi bi-bar-chart"></i> Estatísticas do Sistema</h5>
-                        <div class="row text-center mt-3">
-                            <div class="col-3">
-                                <div class="stats-number" id="csv-count">0</div>
-                                <small>CSVs</small>
-                            </div>
-                            <div class="col-3">
-                                <div class="stats-number" id="pdf-count">0</div>
-                                <small>PDFs</small>
-                            </div>
-                            <div class="col-3">
-                                <div class="stats-number" id="image-count">0</div>
-                                <small>Imagens</small>
-                            </div>
-                            <div class="col-3">
-                                <div class="stats-number" id="xlsx-count">0</div>
-                                <small>XLSX</small>
-                            </div>
-                        </div>
+                    <div class="card-body text-center">
+                        <i class="bi bi-file-earmark-spreadsheet" style="font-size: 40px;"></i>
+                        <div class="stats-number" id="csv-count">0</div>
+                        <div>Arquivos CSV</div>
                     </div>
                 </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-file-pdf" style="font-size: 40px;"></i>
+                        <div class="stats-number" id="pdf-count">0</div>
+                        <div>Arquivos PDF</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-image" style="font-size: 40px;"></i>
+                        <div class="stats-number" id="image-count">0</div>
+                        <div>Imagens</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-file-earmark-excel" style="font-size: 40px;"></i>
+                        <div class="stats-number" id="xlsx-count">0</div>
+                        <div>Arquivos Excel</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <!-- Controles Principais -->
+        <!-- Painel Principal -->
+        <div class="row">
+            <!-- Coluna Esquerda - Controles -->
+            <div class="col-md-4">
+                <!-- Status do Scraping -->
                 <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0"><i class="bi bi-gear"></i> Controles Principais</h5>
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-robot"></i> Status do Scraping</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label class="form-label"><i class="bi bi-box-seam"></i> Lista de Produtos</label>
-                            <textarea class="form-control" id="products-list" rows="5" 
-                                      placeholder="Códigos separados por vírgula (ex: 14,15,19,20)"></textarea>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span id="status-text" class="badge bg-secondary">Parado</span>
+                                <span id="progress-text">0%</span>
+                            </div>
+                            <div class="progress">
+                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%">0%</div>
+                            </div>
                         </div>
                         
-                        <div class="d-grid gap-2 mb-3">
-                            <button class="btn btn-outline-primary" onclick="loadProducts()">
-                                <i class="bi bi-download"></i> Carregar Produtos
-                            </button>
-                            <button class="btn btn-outline-success" onclick="saveProducts()">
-                                <i class="bi bi-save"></i> Salvar Produtos
-                            </button>
+                        <div class="mb-3">
+                            <p><strong>Produto Atual:</strong> <span id="current-product">-</span></p>
+                            <p><strong>Mensagem:</strong> <span id="status-message">Aguardando início...</span></p>
                         </div>
                         
-                        <div class="d-grid gap-2 mb-3">
-                            <button class="btn btn-success" id="start-btn" onclick="startScraping()">
+                        <div class="d-grid gap-2">
+                            <button id="start-btn" class="btn btn-success" onclick="startScraping()">
                                 <i class="bi bi-play-circle"></i> Iniciar Scraping
                             </button>
-                            <button class="btn btn-danger" id="stop-btn" onclick="stopScraping()" disabled>
+                            <button id="stop-btn" class="btn btn-danger" onclick="stopScraping()" disabled>
                                 <i class="bi bi-stop-circle"></i> Parar Scraping
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Geração de Relatórios -->
+                <!-- Logs -->
                 <div class="card">
                     <div class="card-header bg-info text-white">
-                        <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> Geração de Relatórios</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-warning" onclick="createCSVs()">
-                                <i class="bi bi-file-earmark-spreadsheet"></i> Criar CSVs Individuais
-                            </button>
-                            <button class="btn btn-info" onclick="consolidate()">
-                                <i class="bi bi-file-earmark-excel"></i> Consolidar Dados
-                            </button>
-                            <button class="btn btn-primary" onclick="generatePDFs()">
-                                <i class="bi bi-file-pdf"></i> Gerar PDFs + Imagens
-                            </button>
-                            <button class="btn btn-outline-info" onclick="testParser()">
-                                <i class="bi bi-bug"></i> Testar Parser
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Coluna Central -->
-            <div class="col-md-4">
-                <!-- Progresso do Sistema -->
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0"><i class="bi bi-speedometer2"></i> Progresso do Sistema</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="progress mb-3">
-                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                 style="width: 0%" role="progressbar"></div>
-                        </div>
-                        <div class="row">
-                            <div class="col-6">
-                                <p><strong><i class="bi bi-activity"></i> Status:</strong></p>
-                                <p><strong><i class="bi bi-box"></i> Produto Atual:</strong></p>
-                                <p><strong><i class="bi bi-chat-left-text"></i> Mensagem:</strong></p>
-                            </div>
-                            <div class="col-6">
-                                <p><span id="status-text" class="badge bg-info">Pronto</span></p>
-                                <p><span id="current-product" class="badge bg-secondary">-</span></p>
-                                <p><span id="status-message" class="text-muted">Aguardando início</span></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuração de Email -->
-                <div class="card">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="bi bi-envelope"></i> Envio de Email</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label"><i class="bi bi-people"></i> Lista de Contatos</label>
-                            <textarea class="form-control" id="email-contacts" rows="3" 
-                                      placeholder="emails separados por ponto e vírgula"></textarea>
-                            <small class="text-muted">Exemplo: email1@exemplo.com;email2@exemplo.com</small>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label"><i class="bi bi-chat-left-text"></i> Mensagem do Email</label>
-                            <textarea class="form-control" id="email-message" rows="4"></textarea>
-                        </div>
-                        
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-success" onclick="loadEmailSettings()">
-                                <i class="bi bi-download"></i> Carregar Configurações
-                            </button>
-                            <button class="btn btn-success" onclick="saveEmailSettings()">
-                                <i class="bi bi-save"></i> Salvar Configurações
-                            </button>
-                            <button class="btn btn-dark" onclick="sendEmail()">
-                                <i class="bi bi-send"></i> Enviar Email com Relatório
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Coluna Direita -->
-            <div class="col-md-4">
-                <!-- Logs do Sistema -->
-                <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0"><i class="bi bi-terminal"></i> Logs do Sistema</h5>
+                        <h5 class="mb-0"><i class="bi bi-journal-text"></i> Logs do Sistema</h5>
                     </div>
                     <div class="card-body">
                         <div class="log-container" id="log-content">
                             <!-- Logs serão inseridos aqui -->
                         </div>
-                        <div class="mt-2 d-flex justify-content-between">
+                        <div class="mt-3 d-flex gap-2">
                             <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()">
-                                <i class="bi bi-trash"></i> Limpar Logs
+                                <i class="bi bi-trash"></i> Limpar
                             </button>
-                            <button class="btn btn-sm btn-outline-info" onclick="copyLogs()">
-                                <i class="bi bi-clipboard"></i> Copiar Logs
+                            <button class="btn btn-sm btn-outline-secondary" onclick="copyLogs()">
+                                <i class="bi bi-clipboard"></i> Copiar
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="testParser()">
+                                <i class="bi bi-bug"></i> Testar Parser
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Limpeza de Dados -->
+                <!-- Configurações de Email -->
                 <div class="card">
                     <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0"><i class="bi bi-trash"></i> Limpeza de Dados</h5>
+                        <h5 class="mb-0"><i class="bi bi-envelope"></i> Configurações de Email</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="clean-csv" checked>
-                                <label class="form-check-label" for="clean-csv">
-                                    <i class="bi bi-file-earmark-spreadsheet"></i> Limpar arquivos CSV
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="clean-debug" checked>
-                                <label class="form-check-label" for="clean-debug">
-                                    <i class="bi bi-bug"></i> Limpar arquivos de Debug
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="clean-pdfs" checked>
-                                <label class="form-check-label" for="clean-pdfs">
-                                    <i class="bi bi-file-pdf"></i> Limpar arquivos PDF
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="clean-images" checked>
-                                <label class="form-check-label" for="clean-images">
-                                    <i class="bi bi-image"></i> Limpar arquivos de Imagem
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="clean-xlsx" checked>
-                                <label class="form-check-label" for="clean-xlsx">
-                                    <i class="bi bi-file-earmark-excel"></i> Limpar arquivos XLSX
-                                </label>
-                            </div>
+                            <label class="form-label">Contatos (separados por ;)</label>
+                            <textarea class="form-control" id="email-contacts" rows="3"></textarea>
                         </div>
-                        
-                        <div class="d-grid">
-                            <button class="btn btn-danger" onclick="cleanData()">
-                                <i class="bi bi-trash-fill"></i> Limpar Dados Coletados
+                        <div class="mb-3">
+                            <label class="form-label">Mensagem do Email</label>
+                            <textarea class="form-control" id="email-message" rows="5"></textarea>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-warning" onclick="loadEmailSettings()">
+                                <i class="bi bi-arrow-clockwise"></i> Carregar
+                            </button>
+                            <button class="btn btn-success" onclick="saveEmailSettings()">
+                                <i class="bi bi-save"></i> Salvar Configurações
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Lista de Arquivos -->
-        <div class="row mt-4">
-            <div class="col-12">
+            <!-- Coluna Direita - Arquivos e Ações -->
+            <div class="col-md-8">
+                <!-- Abas de Arquivos -->
                 <div class="card">
-                    <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0"><i class="bi bi-folder"></i> Arquivos Gerados</h5>
-                    </div>
-                    <div class="card-body">
-                        <ul class="nav nav-tabs" id="filesTab" role="tablist">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="filesTab" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="csv-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#csv-files" type="button" role="tab">
-                                    <i class="bi bi-file-earmark-spreadsheet"></i> CSVs
-                                </button>
+                                        data-bs-target="#csv-files" type="button">CSV <span id="csv-badge" class="badge bg-primary">0</span></button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="pdf-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#pdf-files" type="button" role="tab">
-                                    <i class="bi bi-file-pdf"></i> PDFs
-                                </button>
+                                        data-bs-target="#pdf-files" type="button">PDF <span id="pdf-badge" class="badge bg-danger">0</span></button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="image-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#image-files" type="button" role="tab">
-                                    <i class="bi bi-image"></i> Imagens
-                                </button>
+                                        data-bs-target="#image-files" type="button">Imagens <span id="image-badge" class="badge bg-success">0</span></button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="xlsx-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#xlsx-files" type="button" role="tab">
-                                    <i class="bi bi-file-earmark-excel"></i> XLSX
-                                </button>
+                                        data-bs-target="#xlsx-files" type="button">Excel <span id="xlsx-badge" class="badge bg-success">0</span></button>
                             </li>
                         </ul>
-                        <div class="tab-content p-3" id="filesTabContent">
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="filesTabContent">
+                            <!-- Tab CSV -->
                             <div class="tab-pane fade show active" id="csv-files" role="tabpanel">
-                                <div id="csv-files-list"></div>
+                                <div id="csv-files-list">
+                                    <!-- CSV files will be listed here -->
+                                </div>
                             </div>
+                            
+                            <!-- Tab PDF -->
                             <div class="tab-pane fade" id="pdf-files" role="tabpanel">
-                                <div id="pdf-files-list"></div>
+                                <div id="pdf-files-list">
+                                    <!-- PDF files will be listed here -->
+                                </div>
                             </div>
+                            
+                            <!-- Tab Images -->
                             <div class="tab-pane fade" id="image-files" role="tabpanel">
-                                <div id="image-files-list"></div>
+                                <div id="image-files-list">
+                                    <!-- Image files will be listed here -->
+                                </div>
                             </div>
+                            
+                            <!-- Tab Excel -->
                             <div class="tab-pane fade" id="xlsx-files" role="tabpanel">
-                                <div id="xlsx-files-list"></div>
+                                <div id="xlsx-files-list">
+                                    <!-- Excel files will be listed here -->
+                                </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel de Ações -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0"><i class="bi bi-gear"></i> Processamento de Dados</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="btn-group-vertical" role="group">
+                                    <button class="btn btn-outline-primary text-start" onclick="createCSVs()">
+                                        <i class="bi bi-file-earmark-spreadsheet"></i> Criar CSVs Individuais
+                                    </button>
+                                    <button class="btn btn-outline-primary text-start" onclick="consolidate()">
+                                        <i class="bi bi-arrow-down-up"></i> Consolidar Dados
+                                    </button>
+                                    <button class="btn btn-outline-primary text-start" onclick="generatePDFs()">
+                                        <i class="bi bi-file-pdf"></i> Gerar Relatórios PDF
+                                    </button>
+                                    <button class="btn btn-outline-success text-start" onclick="sendEmail()">
+                                        <i class="bi bi-envelope"></i> Enviar Email com Relatório
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0"><i class="bi bi-trash"></i> Limpeza de Dados</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="clean-csv" checked>
+                                    <label class="form-check-label" for="clean-csv">
+                                        Limpar arquivos CSV
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="clean-debug" checked>
+                                    <label class="form-check-label" for="clean-debug">
+                                        Limpar arquivos de Debug
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="clean-pdfs" checked>
+                                    <label class="form-check-label" for="clean-pdfs">
+                                        Limpar arquivos PDF
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="clean-images" checked>
+                                    <label class="form-check-label" for="clean-images">
+                                        Limpar arquivos de Imagem
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="clean-xlsx" checked>
+                                    <label class="form-check-label" for="clean-xlsx">
+                                        Limpar arquivos Excel
+                                    </label>
+                                </div>
+                                <button class="btn btn-danger w-100" onclick="cleanData()">
+                                    <i class="bi bi-trash"></i> Limpar Dados Selecionados
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuração de Produtos -->
+                <div class="card mt-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-box"></i> Configuração de Produtos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Lista de Produtos (códigos separados por vírgula)</label>
+                            <textarea class="form-control" id="products-list" rows="3">14,15,19,20,23,24,27,28,29,30</textarea>
+                            <small class="text-muted">Exemplo: 14,15,19,20,23,24,27,28,29,30</small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" onclick="loadProducts()">
+                                <i class="bi bi-arrow-clockwise"></i> Carregar
+                            </button>
+                            <button class="btn btn-success" onclick="saveProducts()">
+                                <i class="bi bi-save"></i> Salvar Lista
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -358,7 +471,50 @@
         </div>
     </div>
 
-    <!-- Modal para confirmação de limpeza -->
+    <!-- Modal para Editor de Email Avançado (FULLSCREEN) -->
+    <div class="modal fade" id="emailEditorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-envelope"></i> Editor de Email em Massa
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="emailEditorContent">
+                    <!-- Conteúdo será carregado dinamicamente via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Envio em Massa -->
+    <div class="modal fade" id="massSendModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="bi bi-send"></i> Confirmar Envio em Massa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="massSendDetails">
+                        <!-- Detalhes serão preenchidos via JavaScript -->
+                    </div>
+                    <div class="progress mt-3" id="massSendProgress" style="display: none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="massSendProgressBar" style="width: 0%"></div>
+                    </div>
+                    <div id="massSendLog" class="mt-3" style="max-height: 200px; overflow-y: auto;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmMassSend()">Iniciar Envio</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Limpeza de Dados -->
     <div class="modal fade" id="cleanModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -367,36 +523,31 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Tem certeza que deseja limpar os dados coletados?</p>
+                    <p><strong>Tem certeza que deseja limpar os dados selecionados?</strong></p>
+                    <p>Esta ação não pode ser desfeita.</p>
                     <div id="clean-options">
                         <!-- Opções serão preenchidas via JavaScript -->
                     </div>
-                    <p class="text-danger mt-2">
-                        <i class="bi bi-exclamation-circle"></i> 
-                        <strong>Atenção:</strong> Esta ação não pode ser desfeita!
-                    </p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle"></i> Cancelar
-                    </button>
-                    <button type="button" class="btn btn-danger" onclick="confirmClean()">
-                        <i class="bi bi-trash-fill"></i> Confirmar Limpeza
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmClean()">Confirmar Limpeza</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal para resultados -->
+    <!-- Modal para Resultados -->
     <div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header" id="result-modal-header">
-                    <h5 class="modal-title" id="result-modal-title"></h5>
+                    <h5 class="modal-title" id="result-modal-title">Resultado</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" id="result-modal-body"></div>
+                <div class="modal-body" id="result-modal-body">
+                    <!-- Conteúdo será preenchido via JavaScript -->
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 </div>
@@ -404,10 +555,20 @@
         </div>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Quill.js para editor rico -->
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+    <!-- Nosso arquivo JavaScript externo para o editor de email -->
+    <script src="/static/js/email_editor.js"></script>
+
     <script>
         let logs = [];
         let statusInterval;
+        
+        // ============================================
+        // FUNÇÕES EXISTENTES DO SISTEMA PRINCIPAL
+        // ============================================
         
         // Atualizar data atual
         function updateCurrentDate() {
@@ -1001,7 +1162,7 @@
                         imageHtml = '<p class="text-muted">Nenhum arquivo de imagem</p>';
                     }
                     
-                    // XLSX Files (NOVO)
+                    // XLSX Files
                     if (xlsxFiles.length > 0) {
                         xlsxFiles.forEach(file => {
                             const fileSize = file.size ? (file.size / 1024).toFixed(1) : '0';
@@ -1038,6 +1199,12 @@
                 document.getElementById('pdf-count').textContent = pdfFiles.length;
                 document.getElementById('image-count').textContent = imageFiles.length;
                 document.getElementById('xlsx-count').textContent = xlsxFiles.length;
+                
+                // Atualizar badges das abas
+                document.getElementById('csv-badge').textContent = csvFiles.length;
+                document.getElementById('pdf-badge').textContent = pdfFiles.length;
+                document.getElementById('image-badge').textContent = imageFiles.length;
+                document.getElementById('xlsx-badge').textContent = xlsxFiles.length;
                 
             } catch (error) {
                 console.error('Erro ao carregar arquivos:', error);
@@ -1083,11 +1250,279 @@
             `;
             showResultModal('Visualizar Imagem', modalHtml);
         }
-
-        // Inicialização
+        
+        // ============================================
+        // FUNÇÕES DO MENU HAMBURGUER
+        // ============================================
+        
+        // Menu Hamburguer
+        document.getElementById('hamburgerMenu').addEventListener('click', function(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('mainMenuDropdown');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        });
+        
+        // Fechar menu ao clicar fora
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('mainMenuDropdown');
+            if (!e.target.closest('#hamburgerMenu') && !e.target.closest('#mainMenuDropdown')) {
+                menu.style.display = 'none';
+            }
+        });
+        
+        // Mostrar Editor de Email Avançado
+        function showEmailEditor() {
+            // Fechar menu
+            document.getElementById('mainMenuDropdown').style.display = 'none';
+            
+            // Carregar conteúdo do editor
+            loadEmailEditorContent();
+            
+            // Mostrar modal
+            const emailModal = new bootstrap.Modal(document.getElementById('emailEditorModal'));
+            emailModal.show();
+        }
+        
+        // Carregar conteúdo do editor
+        async function loadEmailEditorContent() {
+            try {
+                const response = await fetch('/templates/email_editor.html');
+                if (!response.ok) {
+                    // Se não encontrar o template, criar dinamicamente
+                    createDynamicEmailEditor();
+                    return;
+                }
+                
+                const content = await response.text();
+                document.getElementById('emailEditorContent').innerHTML = content;
+                
+                // Inicializar editor (função do arquivo externo)
+                if (typeof initEmailEditor === 'function') {
+                    setTimeout(initEmailEditor, 100); // Pequeno delay para DOM carregar
+                }
+                
+            } catch (error) {
+                console.error('Erro ao carregar editor:', error);
+                createDynamicEmailEditor();
+            }
+        }
+        
+        // Criar editor dinamicamente se o template não existir
+        function createDynamicEmailEditor() {
+            const editorHTML = `
+                <div class="container-fluid p-4">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <!-- Configurações do Email -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0"><i class="bi bi-envelope"></i> Configurações do Email</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Assunto</label>
+                                        <input type="text" class="form-control" id="emailSubject" placeholder="Assunto do email">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Modo de Envio</label>
+                                        <select class="form-select" id="emailSendType">
+                                            <option value="individual">Individual (um por um)</option>
+                                            <option value="cc">Com Cópia (CC)</option>
+                                            <option value="bcc">Cópia Oculta (BCC)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Editor de Conteúdo -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0"><i class="bi bi-pencil"></i> Editor de Conteúdo</h5>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Barra de Ferramentas -->
+                                    <div id="editorToolbar" class="custom-toolbar mb-3">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('bold')">
+                                            <i class="bi bi-type-bold"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('italic')">
+                                            <i class="bi bi-type-italic"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('underline')">
+                                            <i class="bi bi-type-underline"></i>
+                                        </button>
+                                        <div class="vr mx-2"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('left')">
+                                            <i class="bi bi-text-left"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('center')">
+                                            <i class="bi bi-text-center"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="formatText('right')">
+                                            <i class="bi bi-text-right"></i>
+                                        </button>
+                                        <div class="vr mx-2"></div>
+                                        <input type="color" class="form-control form-control-color" id="textColor" 
+                                               title="Cor do texto" onchange="changeTextColor(this.value)">
+                                        <div class="vr mx-2"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="insertVariable('nome')">
+                                            <i class="bi bi-person"></i> Nome
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="insertVariable('email')">
+                                            <i class="bi bi-envelope"></i> Email
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Área de Edição -->
+                                    <div id="editor" style="min-height: 400px; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px;"></div>
+                                    
+                                    <!-- HTML Raw -->
+                                    <div class="mt-3">
+                                        <label class="form-label">HTML Personalizado</label>
+                                        <textarea class="form-control" id="htmlRaw" rows="5" 
+                                                  placeholder="Ou cole seu HTML aqui..."></textarea>
+                                    </div>
+                                    
+                                    <!-- Texto Simples -->
+                                    <div class="mt-3">
+                                        <label class="form-label">Texto Simples (para clientes sem HTML)</label>
+                                        <textarea class="form-control" id="textPlain" rows="3" 
+                                                  placeholder="Texto alternativo..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <!-- Lista de Contatos -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0"><i class="bi bi-people"></i> Lista de Contatos</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <button class="btn btn-sm btn-success w-100 mb-2" onclick="loadAdvancedContacts()">
+                                            <i class="bi bi-arrow-clockwise"></i> Carregar Contatos
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success w-100 mb-2" onclick="addContactManually()">
+                                            <i class="bi bi-plus"></i> Adicionar Manualmente
+                                        </button>
+                                        <textarea class="form-control" id="contactsRaw" rows="5" 
+                                                  placeholder="email;nome&#10;exemplo@dominio.com;João Silva"></textarea>
+                                        <small class="text-muted">Formato: email;nome (um por linha)</small>
+                                    </div>
+                                    <div id="contactsList" class="mt-3" style="max-height: 200px; overflow-y: auto;">
+                                        <!-- Contatos serão carregados aqui -->
+                                    </div>
+                                    <div class="mt-3">
+                                        <button class="btn btn-sm btn-primary w-100" onclick="saveAdvancedContacts()">
+                                            <i class="bi bi-save"></i> Salvar Contatos
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Anexos -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5 class="mb-0"><i class="bi bi-paperclip"></i> Anexos</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <input type="file" class="form-control" id="fileUpload" multiple>
+                                        <small class="text-muted">Tamanho máximo: 10MB por arquivo</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-warning w-100 mb-3" onclick="uploadAttachments()">
+                                        <i class="bi bi-upload"></i> Enviar Anexos
+                                    </button>
+                                    <div id="attachmentsList" style="max-height: 150px; overflow-y: auto;">
+                                        <!-- Anexos serão listados aqui -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Templates -->
+                            <div class="card mb-4">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0"><i class="bi bi-file-earmark"></i> Templates</h5>
+                                </div>
+                                <div class="card-body">
+                                    <select class="form-select mb-3" id="templateSelect" onchange="loadTemplate()">
+                                        <option value="">Selecione um template...</option>
+                                    </select>
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-sm btn-outline-info" onclick="saveAsTemplate()">
+                                            <i class="bi bi-save"></i> Salvar como Template
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate()">
+                                            <i class="bi bi-trash"></i> Excluir Template
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Ações -->
+                            <div class="card">
+                                <div class="card-header bg-dark text-white">
+                                    <h5 class="mb-0"><i class="bi bi-send"></i> Ações</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-primary" onclick="previewEmail()">
+                                            <i class="bi bi-eye"></i> Pré-visualizar
+                                        </button>
+                                        <button class="btn btn-success" onclick="prepareMassSend()">
+                                            <i class="bi bi-send-check"></i> Preparar Envio
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="testSingleEmail()">
+                                            <i class="bi bi-envelope-check"></i> Testar Envio Único
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="cleanEmailData()">
+                                            <i class="bi bi-trash"></i> Limpar Dados
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Modal (será aberto dinamicamente) -->
+                    <div id="emailPreviewContainer" style="display: none;"></div>
+                </div>
+            `;
+            
+            document.getElementById('emailEditorContent').innerHTML = editorHTML;
+            
+            // Inicializar editor (função do arquivo externo)
+            if (typeof initEmailEditor === 'function') {
+                setTimeout(initEmailEditor, 100);
+            }
+        }
+        
+        // ============================================
+        // FUNÇÕES AUXILIARES DO MENU
+        // ============================================
+        
+        function testEmailConnection() {
+            window.open('/api/test-email-setup', '_blank');
+        }
+        
+        function openTools() {
+            alert('Ferramentas - Em desenvolvimento');
+        }
+        
+        function openSettings() {
+            alert('Configurações - Em desenvolvimento');
+        }
+        
+        // ============================================
+        // INICIALIZAÇÃO
+        // ============================================
+        
         document.addEventListener('DOMContentLoaded', function() {
             updateCurrentDate();
-            setInterval(updateCurrentDate, 60000); // Atualizar a cada minuto
+            setInterval(updateCurrentDate, 60000);
             
             loadProducts();
             loadEmailSettings();
@@ -1105,6 +1540,11 @@
                         startStatusPolling();
                     }
                 });
+            
+            // Carregar logs de email
+            if (typeof loadEmailLogs === 'function') {
+                loadEmailLogs();
+            }
         });
     </script>
 </body>
